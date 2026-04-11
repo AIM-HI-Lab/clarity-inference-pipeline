@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axis-inference-pipeline"
+version = "0.1.0"
+description = "End-to-end DICOM-to-axis-pn pipeline and PNvsRN NIfTI inference (SWP stack)."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "torch",
+    "torchvision",
+    "tqdm",
+    "scikit-learn",
+    "nibabel",
+    "scipy",
+    "opencv-python-headless",
+    "typer>=0.9.0",
+    "pydicom>=2.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.4.0",
+]
+phase = [
+    # Optional: internal phase-model when available in your environment.
+]
+
+[project.scripts]
+axis-pn = "axis_inference_pipeline.cli:main"
+axis-nnunet-predict = "axis_inference_pipeline.nnunet_predict_compat:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

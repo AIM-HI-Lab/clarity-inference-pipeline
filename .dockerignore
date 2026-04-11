@@ -1,0 +1,17 @@
+.git
+.pytest_cache
+__pycache__
+.DS_Store
+.venv
+.venv312
+.nnunetv1
+.nnunetv2
+.totalsegmentator
+.cache
+local-runs
+pnvrn_folds
+dev/axis_local_env.sh
+tests
+*.pyc
+*.pyo
+*.pyd
