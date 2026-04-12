@@ -103,55 +103,79 @@ AXIS_DEVICE=cuda AXIS_KITS_ROOT=/path/to/c4kc_kits bash dev/run_local_kits.sh Ki
 
 ## Docker
 
-The image installs `axis-inference-pipeline`, `TotalSegmentator`, nnU-Net v2, **legacy nnU-Net v1** (for the KiTS21 tumor model), downloads TotalSegmentator `total` task weights, and installs the public **Task135_KiTS2021** nnU-Net v1 checkpoint into `/opt/nnunet/v1/results`. You still need the **PNvsRN `.pth` weights** (the `pnvrn_folds/` tree from this repo, or any equivalent directory on disk): mount it read-only and pass `--weights-dir`.
+The image installs `axis-inference-pipeline`, `TotalSegmentator`, nnU-Net v2, **legacy nnU-Net v1** (KiTS21 tumor), downloads TotalSegmentator `total` task weights, and installs **Task135_KiTS2021** under `/opt/nnunet/v1/results`. You still need **PNvsRN `.pth` weights** (same tree as `pnvrn_folds/`): mount them and pass `--weights-dir`.
 
-Build:
+### One-time: build the image
 
-```bash
-docker build -t axis-pn .
-```
-
-### Run on another machine (DICOM folder + weights)
-
-1. Put **PNvsRN checkpoints** on disk (same layout as `pnvrn_folds/`, with `.pth` files under subfolders).
-2. Put **DICOMs** in a directory tree (one or more series). If someone only gave you a **download link** (HTTP/S) to a zip or tarball, download and extract it first, then point the container at the folder that contains the `.dcm` files:
+From the repo root:
 
 ```bash
-mkdir -p ~/axis-data/dicoms && cd ~/axis-data/dicoms
-curl -fL "https://example.com/your-dicom-archive.zip" -o dicoms.zip
-unzip dicoms.zip   # or tar xf …
-# Use the directory that actually contains the series (nested subdirs are fine)
+git clone git@github.com:AIM-HI-Lab/axis-inference-pipeline.git
+cd axis-inference-pipeline
+docker build -t axis-inference-pipeline:local .
 ```
 
-3. Pick an output directory and run:
+(GPU host: `docker build -f Dockerfile.gpu -t axis-inference-pipeline:gpu .`)
+
+### Run: point at your DICOMs
+
+1. Put **DICOMs** anywhere on disk (nested folders are fine). If you only have a zip/tar, extract it first so you have a directory of `.dcm` files.
+2. Put **PNvsRN checkpoints** in a directory with the same layout as `pnvrn_folds/` (25× `.pth` under subfolders). If that folder is not in the clone, copy or symlink it next to the repo.
+3. Choose an **empty output directory** for results.
+
+**Easiest (helper script)** — builds paths for you:
+
+```bash
+chmod +x dev/docker-predict.sh
+./dev/docker-predict.sh /path/to/dicom/folder /path/to/output /path/to/pnvrn_folds
+```
+
+Optional flags after `--` go to `axis-pn predict`, e.g. `-- --series-uid 1.2.840...`
+
+**Same thing with `docker run`:**
 
 ```bash
 docker run --rm \
-  -v /path/to/dicoms:/input:ro \
-  -v /path/to/output:/output \
+  -v /path/to/dicoms:/data/dicom:ro \
+  -v /path/to/output:/data/out \
   -v /path/to/pnvrn_folds:/models:ro \
-  axis-pn predict \
-  --input /input \
-  --work-dir /output \
+  axis-inference-pipeline:local \
+  predict \
+  --input /data/dicom \
+  --work-dir /data/out \
   --weights-dir /models \
-  --checkpoint-dir-recursive
-```
-
-Replace `/path/to/dicoms` with the folder from step 2. The pipeline discovers series under `--input`; you do not need to flatten DICOMs into a single directory if they already live in a per-series folder.
-
-For **GPU**, use your environment’s NVIDIA Container Toolkit settings and add `--device cuda` to the `predict` command.
-
-**CPU-only** example (same mounts):
-
-```bash
-docker run --rm \
-  -v /path/to/dicoms:/input:ro \
-  -v /path/to/output:/output \
-  -v /path/to/pnvrn_folds:/models:ro \
-  axis-pn predict \
-  --input /input \
-  --work-dir /output \
-  --weights-dir /models \
-  --checkpoint-dir-recursive \
   --device cpu
 ```
+
+Recursive checkpoint discovery is **on by default**; you do not need `--checkpoint-dir-recursive` unless you turned it off.
+
+**Compose (optional):**
+
+```bash
+mkdir -p data/dicom data/out
+# copy or symlink DICOMs into data/dicom; ensure pnvrn_folds exists beside compose file
+docker compose run --rm axis-pn predict \
+  --input /data/dicom \
+  --work-dir /data/out \
+  --weights-dir /models \
+  --device cpu
+```
+
+Override bind paths with env: `DICOM_DIR`, `OUT_DIR`, `WEIGHTS_DIR`.
+
+### GPU (NVIDIA)
+
+1. Install [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) on the host.
+2. Build `Dockerfile.gpu` (see above).
+3. Run with GPU, for example:
+
+```bash
+AXIS_DOCKER_IMAGE=axis-inference-pipeline:gpu AXIS_DOCKER_GPU=1 AXIS_DEVICE=cuda \
+  ./dev/docker-predict.sh /path/to/dicom /path/to/out /path/to/pnvrn_folds
+```
+
+Or: `docker compose --profile gpu run --rm axis-pn-gpu predict ... --device cuda` (requires a GPU-capable Compose setup).
+
+### What you get
+
+Under the output/work dir: `cases/`, `swp_manifest.json`, `predictions/predictions.json`, `run_manifest.json` (see [Output Layout](#output-layout)).

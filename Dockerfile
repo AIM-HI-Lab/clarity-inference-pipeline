@@ -1,3 +1,4 @@
+# CPU-friendly image (runs anywhere). For NVIDIA GPU inference, build Dockerfile.gpu instead.
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -27,21 +28,25 @@ WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE /app/
 COPY src /app/src
+COPY docker/entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-RUN python -m pip install --upgrade pip setuptools wheel && \
+# setuptools<82 avoids occasional editable-install issues (matches dev/setup_local_models.sh)
+RUN python -m pip install --upgrade pip "setuptools<82" wheel && \
     python -m pip install .
 
 RUN if [ "$INSTALL_TOTALSEGMENTATOR" = "1" ]; then python -m pip install TotalSegmentator; fi && \
     if [ "$INSTALL_NNUNET" = "1" ]; then python -m pip install nnunetv2 nnunet; fi
 
-# TotalSegmentator task weights (same as local setup: `totalseg_download_weights -t total`)
 RUN if [ "$INSTALL_TOTALSEGMENTATOR" = "1" ]; then totalseg_download_weights -t total || true; fi
 
-# Public KiTS21 nnU-Net v1 pretrained model (Task135) used by default tumor path
 RUN if [ "$INSTALL_NNUNET" = "1" ]; then \
     curl -fsSL -o /tmp/Task135_KiTS2021.zip "https://zenodo.org/records/5126443/files/Task135_KiTS2021.zip?download=1" && \
     nnUNet_install_pretrained_model_from_zip /tmp/Task135_KiTS2021.zip && \
     rm -f /tmp/Task135_KiTS2021.zip; \
     fi
 
-ENTRYPOINT ["axis-pn"]
+LABEL org.opencontainers.image.title="axis-inference-pipeline" \
+      org.opencontainers.image.description="DICOM → TotalSegmentator → nnU-Net tumor → axis-pn (SWP)"
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

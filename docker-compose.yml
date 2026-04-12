@@ -1,0 +1,36 @@
+# Quick start (after `docker build -t axis-inference-pipeline:local .`):
+#   mkdir -p data/dicom data/out
+#   cp -r /path/to/your/dicom/series/* data/dicom/
+#   docker compose run --rm axis-pn predict \
+#     --input /data/dicom --work-dir /data/out --weights-dir /models --device cpu
+#
+# Weights: place or symlink `pnvrn_folds` next to this file, or set WEIGHTS_DIR to an absolute path.
+services:
+  axis-pn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: axis-inference-pipeline:local
+    volumes:
+      - ${DICOM_DIR:-./data/dicom}:/data/dicom:ro
+      - ${OUT_DIR:-./data/out}:/data/out
+      - ${WEIGHTS_DIR:-./pnvrn_folds}:/models:ro
+
+  axis-pn-gpu:
+    profiles:
+      - gpu
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: axis-inference-pipeline:gpu
+    volumes:
+      - ${DICOM_DIR:-./data/dicom}:/data/dicom:ro
+      - ${OUT_DIR:-./data/out}:/data/out
+      - ${WEIGHTS_DIR:-./pnvrn_folds}:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

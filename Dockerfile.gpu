@@ -1,0 +1,49 @@
+# NVIDIA GPU image: PyTorch with CUDA is preinstalled; avoid overwriting with CPU wheels from pip.
+# Build: docker build -f Dockerfile.gpu -t axis-inference-pipeline:gpu .
+# Run:  docker run --gpus all ... axis-inference-pipeline:gpu predict --device cuda ...
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    nnUNet_raw_data_base=/opt/nnunet/v1/raw \
+    nnUNet_preprocessed=/opt/nnunet/v1/preprocessed \
+    RESULTS_FOLDER=/opt/nnunet/v1/results \
+    TOTALSEG_HOME_DIR=/opt/totalsegmentator
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    dcm2niix \
+    git \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/nnunet/v1/raw /opt/nnunet/v1/preprocessed /opt/nnunet/v1/results /opt/totalsegmentator
+
+WORKDIR /app
+
+COPY pyproject.toml README.md LICENSE /app/
+COPY src /app/src
+COPY docker/entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Install everything except torch/torchvision (use the CUDA builds from the base image).
+RUN pip install --upgrade pip "setuptools<82" wheel && \
+    pip install --no-cache-dir "numpy" "tqdm" "scikit-learn" "nibabel" "scipy" "opencv-python-headless" "typer>=0.9.0" "pydicom>=2.4.0"
+
+RUN pip install --no-cache-dir --no-deps -e /app
+
+RUN pip install --no-cache-dir TotalSegmentator nnunetv2 nnunet
+RUN totalseg_download_weights -t total || true
+
+RUN curl -fsSL -o /tmp/Task135_KiTS2021.zip "https://zenodo.org/records/5126443/files/Task135_KiTS2021.zip?download=1" && \
+    nnUNet_install_pretrained_model_from_zip /tmp/Task135_KiTS2021.zip && \
+    rm -f /tmp/Task135_KiTS2021.zip
+
+LABEL org.opencontainers.image.title="axis-inference-pipeline-gpu"
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
