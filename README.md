@@ -31,6 +31,101 @@ You will also need external runtime tools on `PATH`. The dev setup script instal
 
 Phase gating is optional and disabled by default because the internal phase-classifier package is not present in this repo.
 
+### Prerequisites (local runs)
+
+- **Python 3.12** (the setup script uses `python3.12`)
+- **`dcm2niix`** on your `PATH` (e.g. macOS: `brew install dcm2niix`)
+- **PNvsRN weights**: a directory tree of **25** `.pth` checkpoints in the same layout as `pnvrn_folds/` (fold subfolders). Download or copy that tree somewhere, e.g. `~/models/pnvrn_folds`.
+
+### Input path: always a folder
+
+`axis-pn predict --input` must be a **directory**, not a path to a single `.dcm` file. Unzip or copy your DICOMs into a folder first. Typical CT scans are one folder with many slice files (one series); put that folder path as `--input`.
+
+## Quick start (copy-paste)
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/AIM-HI-Lab/axis-inference-pipeline.git
+cd axis-inference-pipeline
+./dev/setup_local_models.sh
+```
+
+This creates `.venv312`, installs the package + TotalSegmentator + nnU-Net, downloads KiTS21 tumor weights into the repo-local nnU-Net paths, and writes `dev/axis_local_env.sh`.
+
+### 2. Activate the environment (every new terminal)
+
+```bash
+cd axis-inference-pipeline
+source dev/axis_local_env.sh
+export PATH="$(pwd)/.venv312/bin:$PATH"
+```
+
+### 3. Run on one CT series (one folder of DICOM slices)
+
+Replace the three paths, then run:
+
+```bash
+axis-pn predict \
+  --input /path/to/dicom/folder/one_series \
+  --work-dir /path/to/output/run1 \
+  --weights-dir /path/to/pnvrn_folds \
+  --device cpu
+```
+
+- **`--input`**: folder that contains **only** that series (all `.dcm` slices for one volume).
+- **`--work-dir`**: output folder (created if missing).
+- **`--weights-dir`**: your PNvsRN checkpoint tree (25× `.pth`). If you keep `pnvrn_folds/` inside the repo clone, you can omit `--weights-dir` and it will auto-detect it when present.
+
+Results: **`/path/to/output/run1/predictions/predictions.json`**, plus `cases/<SeriesInstanceUID>/` under the work dir.
+
+### 4. Run on a directory tree (multiple series)
+
+Use the same command when `--input` is a parent folder that contains **several** series (nested folders are fine). The pipeline discovers all DICOM files under that tree recursively.
+
+If you see a warning that multiple series were found, either:
+
+- **Process only one series** — pick its `SeriesInstanceUID` and re-run:
+
+```bash
+axis-pn predict \
+  --input /path/to/dicom/folder \
+  --work-dir /path/to/output/run1 \
+  --weights-dir /path/to/pnvrn_folds \
+  --device cpu \
+  --series-uid "1.2.840.113619.2.55.3.XXXX.XXXX.XXXX.XXXXX"
+```
+
+- **Or** let it run all discovered series (it will process each one).
+
+To **list** series UIDs and slice counts without running the full pipeline:
+
+```bash
+cd axis-inference-pipeline
+source dev/axis_local_env.sh
+export PATH="$(pwd)/.venv312/bin:$PATH"
+python -c "
+from pathlib import Path
+from axis_inference_pipeline.dicom import discover_series_roots
+root = Path('/path/to/dicom/folder')
+for s in discover_series_roots(root):
+    print(s.series_instance_uid, s.modality, s.file_count, 'files')
+"
+```
+
+Replace `/path/to/dicom/folder` with your `--input` directory.
+
+### 5. Same thing with Docker
+
+Build the image once (see [Docker](#docker)), then:
+
+```bash
+chmod +x dev/docker-predict.sh
+./dev/docker-predict.sh /path/to/dicom/folder /path/to/output/run1 /path/to/pnvrn_folds
+```
+
+The first argument must be a **folder** of DICOMs (same rule as `--input` above). Optional: add `-- --series-uid ...` after the three paths.
+
 ## CLI
 
 ```bash
@@ -44,6 +139,8 @@ Useful flags:
 - `--series-uid`: process only one discovered series
 - `--weights-dir`: checkpoint root, defaults to `<repo>/pnvrn_folds` when present
 - `--device cpu|cuda`: SWP inference device override
+- `--totalseg-extra "..."` or env `AXIS_TOTALSEG_EXTRA`: optional extra TotalSegmentator CLI arguments (default: full `total` task).
+- `--tumor-extra "..."` or env `AXIS_TUMOR_EXTRA`: optional extra nnU-Net tumor-segmentation CLI arguments.
 - `--skip-inference`: stop after building SWP-ready NIfTI inputs
 - `--skip-tumor`: create kidney-only SWP masks
 - `--enable-phase-gating --phase-entrypoint ...`: enable optional phase selection
@@ -104,6 +201,8 @@ AXIS_DEVICE=cuda AXIS_KITS_ROOT=/path/to/c4kc_kits bash dev/run_local_kits.sh Ki
 ## Docker
 
 The image installs `axis-inference-pipeline`, `TotalSegmentator`, nnU-Net v2, **legacy nnU-Net v1** (KiTS21 tumor), downloads TotalSegmentator `total` task weights, and installs **Task135_KiTS2021** under `/opt/nnunet/v1/results`. You still need **PNvsRN `.pth` weights** (same tree as `pnvrn_folds/`): mount them and pass `--weights-dir`.
+
+By default, TotalSegmentator runs the full `total` task unless you pass `--totalseg-extra` or set `AXIS_TOTALSEG_EXTRA`.
 
 ### One-time: build the image
 

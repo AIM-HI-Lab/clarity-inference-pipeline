@@ -15,6 +15,7 @@ from .config import (
     TumorSegmentationConfig,
 )
 from .pipeline import build_pipeline_config, run_pipeline
+from .pipeline_profile import resolve_totalsegmentator_extra_args, resolve_tumor_extra_args
 
 app = typer.Typer(
     name="axis-pn",
@@ -78,6 +79,13 @@ def predict(
         Optional[str],
         typer.Option("--totalseg-task", help="Optional TotalSegmentator --task value."),
     ] = None,
+    totalseg_extra: Annotated[
+        Optional[str],
+        typer.Option(
+            "--totalseg-extra",
+            help='Extra TotalSegmentator arguments (shell-style); else AXIS_TOTALSEG_EXTRA.',
+        ),
+    ] = None,
     tumor_binary: Annotated[
         str,
         typer.Option(
@@ -105,6 +113,13 @@ def predict(
         str,
         typer.Option("--tumor-configuration", help="nnUNet configuration when --tumor-mode=nnunetv2."),
     ] = "3d_fullres",
+    tumor_extra: Annotated[
+        Optional[str],
+        typer.Option(
+            "--tumor-extra",
+            help='Extra tumor-segmentation CLI args (shell-style); else AXIS_TUMOR_EXTRA.',
+        ),
+    ] = None,
     checkpoint_dir: Annotated[
         Optional[Path],
         typer.Option(
@@ -186,7 +201,9 @@ def predict(
         enabled=enable_phase_gating,
         entrypoint=phase_entrypoint,
     )
-    ts_cfg = TotalSegmentatorConfig(binary=totalseg_binary, task=totalseg_task)
+    totalseg_extra_args = resolve_totalsegmentator_extra_args(cli_extra=totalseg_extra)
+    tumor_extra_args = resolve_tumor_extra_args(cli_extra=tumor_extra)
+    ts_cfg = TotalSegmentatorConfig(binary=totalseg_binary, task=totalseg_task, extra_args=totalseg_extra_args)
     tumor_cfg = TumorSegmentationConfig(
         binary=tumor_binary,
         mode=tumor_mode,
@@ -194,6 +211,7 @@ def predict(
         model=tumor_model,
         dataset_id=tumor_dataset_id,
         configuration=tumor_configuration,
+        extra_args=tumor_extra_args,
     )
     mask_cfg = MaskAdaptationConfig(reference_image=mask_reference)
     inference_cfg = InferenceConfig(

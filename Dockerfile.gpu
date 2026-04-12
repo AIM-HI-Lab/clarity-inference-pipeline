@@ -46,4 +46,5 @@ RUN curl -fsSL -o /tmp/Task135_KiTS2021.zip "https://zenodo.org/records/5126443/
 
 LABEL org.opencontainers.image.title="axis-inference-pipeline-gpu"
 
+# axis-pn predict: default TotalSegmentator total task unless overridden via --totalseg-extra / AXIS_TOTALSEG_EXTRA.
 ENTRYPOINT ["/docker-entrypoint.sh"]

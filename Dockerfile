@@ -49,4 +49,5 @@ RUN if [ "$INSTALL_NNUNET" = "1" ]; then \
 LABEL org.opencontainers.image.title="axis-inference-pipeline" \
       org.opencontainers.image.description="DICOM → TotalSegmentator → nnU-Net tumor → axis-pn (SWP)"
 
+# axis-pn predict: default TotalSegmentator total task unless overridden via --totalseg-extra / AXIS_TOTALSEG_EXTRA.
 ENTRYPOINT ["/docker-entrypoint.sh"]

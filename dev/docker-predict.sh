@@ -41,12 +41,14 @@ DICOM="$1"
 OUT="${2:-${REPO_ROOT}/data/out}"
 WEIGHTS="${3:-${REPO_ROOT}/pnvrn_folds}"
 
-for p in "$DICOM" "$OUT"; do
-  if [[ ! -e "$p" ]]; then
-    echo "Path does not exist: $p" >&2
-    exit 1
-  fi
-done
+if [[ ! -d "$DICOM" ]]; then
+  echo "DICOM path must be a directory (folder of .dcm files), not a single file: $DICOM" >&2
+  exit 1
+fi
+if [[ ! -e "$OUT" ]]; then
+  echo "Path does not exist: $OUT" >&2
+  exit 1
+fi
 
 if [[ ! -d "$WEIGHTS" ]]; then
   echo "Weights directory not found: $WEIGHTS" >&2

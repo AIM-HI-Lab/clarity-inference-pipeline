@@ -76,20 +76,56 @@ SERIES_DIR="$("${VENV_PYTHON}" - <<'PY' "${KITS_ROOT}" "${CASE_NAME}"
 from pathlib import Path
 import sys
 
+import pydicom
+
 kits_root = Path(sys.argv[1])
 case_name = sys.argv[2]
 case_root = kits_root / case_name
 
+
+def modality_for_series_dir(series_dir: Path) -> str | None:
+    """Modality from the first .dcm file in the directory (header read only)."""
+
+    for child in sorted(series_dir.iterdir()):
+        if child.is_file() and child.suffix.lower() == ".dcm":
+            try:
+                ds = pydicom.dcmread(child, stop_before_pixels=True, force=True)
+                m = getattr(ds, "Modality", None)
+                return str(m).strip() if m else None
+            except Exception:
+                continue
+    return None
+
+
+candidates: list[tuple[Path, str | None]] = []
 for directory in sorted(case_root.rglob("*")):
-    if directory.is_dir():
-        try:
-            if any(child.is_file() and child.suffix.lower() == ".dcm" for child in directory.iterdir()):
-                print(directory)
-                break
-        except Exception:
-            pass
-else:
+    if not directory.is_dir():
+        continue
+    try:
+        if not any(
+            child.is_file() and child.suffix.lower() == ".dcm" for child in directory.iterdir()
+        ):
+            continue
+    except OSError:
+        continue
+    candidates.append((directory, modality_for_series_dir(directory)))
+
+if not candidates:
     raise SystemExit(f"No DICOM series directory found under {case_root}")
+
+# Prefer diagnostic CT volumes. KiTS cases often include a DICOM SEG series; using it
+# yields a label/probability map (0–1), not HU — TotalSegmentator and nnU-Net then
+# produce empty masks and axis-pn fails with "Primary object not found in mask".
+non_seg = [(d, m) for d, m in candidates if m != "SEG"]
+if not non_seg:
+    raise SystemExit(
+        f"Only DICOM SEG (or unreadable) series found under {case_root}. "
+        "Use a directory whose Modality is CT (the diagnostic CT series), not SEG."
+    )
+
+ct_dirs = [(d, m) for d, m in non_seg if m == "CT"]
+chosen = sorted(ct_dirs, key=lambda t: str(t[0]))[0][0] if ct_dirs else sorted(non_seg, key=lambda t: str(t[0]))[0][0]
+print(chosen)
 PY
 )"
 
@@ -104,6 +140,12 @@ echo "  device: ${DEVICE}"
 echo "  tumor backend: nnUNet v1 Task135_KiTS2021"
 
 # Set AXIS_REUSE_CACHED=1 to skip DICOM/TotalSegmentator/tumor when outputs already exist under WORK_DIR (faster iteration on SWP inference).
+#
+# If macOS shows "Python quit unexpectedly" during TotalSegmentator, stderr lines like
+# MallocStackLogging are usually harmless. The crash is often memory pressure on large CTs.
+# Optional: add --force_split for huge volumes only (can break small/cropped scans):
+#   export AXIS_TOTALSEG_EXTRA="-fs -nr 2 -ns 2"
+#
 # Build one argv array so we never expand an empty array under `set -u`.
 AXIS_PREDICT_CMD=(
   "${AXIS_BIN}" predict
@@ -115,6 +157,12 @@ AXIS_PREDICT_CMD=(
   --tumor-model 3d_cascade_fullres
   --device "${DEVICE}"
 )
+if [[ -n "${AXIS_TOTALSEG_EXTRA:-}" ]]; then
+  AXIS_PREDICT_CMD+=(--totalseg-extra "${AXIS_TOTALSEG_EXTRA}")
+fi
+if [[ -n "${AXIS_TUMOR_EXTRA:-}" ]]; then
+  AXIS_PREDICT_CMD+=(--tumor-extra "${AXIS_TUMOR_EXTRA}")
+fi
 if [[ "${AXIS_REUSE_CACHED:-0}" == "1" ]]; then
   AXIS_PREDICT_CMD+=(--reuse-cached-artifacts)
 fi
