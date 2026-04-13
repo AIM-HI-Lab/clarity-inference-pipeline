@@ -2,8 +2,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV_PYTHON="${REPO_ROOT}/.venv312/bin/python"
-AXIS_BIN="${REPO_ROOT}/.venv312/bin/axis-pn"
+VENV_DIR="${AXIS_VENV_DIR:-${REPO_ROOT}/.venv}"
+VENV_PYTHON="${VENV_DIR}/bin/python"
+AXIS_BIN="${VENV_DIR}/bin/axis-pn"
 ENV_FILE="${REPO_ROOT}/dev/axis_local_env.sh"
 
 KITS_ROOT_DEFAULT="${HOME}/Desktop/kits_data/C4KC-KiTS-NBIA-manifest (1)/c4kc_kits"
@@ -13,11 +14,8 @@ DEVICE_DEFAULT="cpu"
 
 if [[ ! -x "${AXIS_BIN}" ]]; then
   echo "Missing ${AXIS_BIN}."
-  echo "Create the env first:"
-  echo "  python3.12 -m venv .venv312"
-  echo "  .venv312/bin/pip install --upgrade pip setuptools wheel"
-  echo "  .venv312/bin/pip install -e ."
-  echo "  .venv312/bin/pip install TotalSegmentator nnunetv2"
+  echo "Create the env first (default interpreter is python3.10; set AXIS_PYTHON if needed):"
+  echo "  ./dev/setup_local_models.sh"
   exit 1
 fi
 
@@ -167,7 +165,7 @@ if [[ "${AXIS_REUSE_CACHED:-0}" == "1" ]]; then
   AXIS_PREDICT_CMD+=(--reuse-cached-artifacts)
 fi
 
-PATH="${REPO_ROOT}/.venv312/bin:${PATH}" "${AXIS_PREDICT_CMD[@]}"
+PATH="${VENV_DIR}/bin:${PATH}" "${AXIS_PREDICT_CMD[@]}"
 
 echo
 echo "Done."

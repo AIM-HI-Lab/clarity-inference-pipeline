@@ -3,7 +3,7 @@
 __pycache__
 .DS_Store
 .venv
-.venv312
+.venv
 .nnunetv1
 .nnunetv2
 .totalsegmentator

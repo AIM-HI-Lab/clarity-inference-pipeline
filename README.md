@@ -33,7 +33,7 @@ Phase gating is optional and disabled by default because the internal phase-clas
 
 ### Prerequisites (local runs)
 
-- **Python 3.12** (the setup script uses `python3.12`)
+- **Python 3.10+** (`dev/setup_local_models.sh` uses **`python3.10`** by default; set `AXIS_PYTHON` to use another interpreter, e.g. `AXIS_PYTHON=python3.12`)
 - **`dcm2niix`** on your `PATH` (e.g. macOS: `brew install dcm2niix`)
 - **PNvsRN weights**: a directory tree of **25** `.pth` checkpoints in the same layout as `pnvrn_folds/` (fold subfolders). Download or copy that tree somewhere, e.g. `~/models/pnvrn_folds`.
 
@@ -51,14 +51,14 @@ cd axis-inference-pipeline
 ./dev/setup_local_models.sh
 ```
 
-This creates `.venv312`, installs the package + TotalSegmentator + nnU-Net, downloads KiTS21 tumor weights into the repo-local nnU-Net paths, and writes `dev/axis_local_env.sh`.
+This creates `.venv`, installs the package + TotalSegmentator + nnU-Net, downloads KiTS21 tumor weights into the repo-local nnU-Net paths, and writes `dev/axis_local_env.sh`.
 
 ### 2. Activate the environment (every new terminal)
 
 ```bash
 cd axis-inference-pipeline
 source dev/axis_local_env.sh
-export PATH="$(pwd)/.venv312/bin:$PATH"
+export PATH="$(pwd)/.venv/bin:$PATH"
 ```
 
 ### 3. Run on one CT series (one folder of DICOM slices)
@@ -103,7 +103,7 @@ To **list** series UIDs and slice counts without running the full pipeline:
 ```bash
 cd axis-inference-pipeline
 source dev/axis_local_env.sh
-export PATH="$(pwd)/.venv312/bin:$PATH"
+export PATH="$(pwd)/.venv/bin:$PATH"
 python -c "
 from pathlib import Path
 from axis_inference_pipeline.dicom import discover_series_roots
@@ -171,7 +171,7 @@ First-time setup:
 
 That script:
 
-- creates `.venv312`
+- creates `.venv` (via `python3.10` unless `AXIS_PYTHON` is set)
 - installs this package plus `TotalSegmentator`, `nnunetv2`, and `nnunet`
 - creates repo-local nnU-Net env directories
 - writes `dev/axis_local_env.sh`
@@ -223,11 +223,12 @@ From an interactive session on a **login or build node** (adjust paths):
 ```bash
 git clone https://github.com/AIM-HI-Lab/axis-inference-pipeline.git
 cd axis-inference-pipeline
-# Python 3.12 + pip; ensure `dcm2niix` is on PATH (e.g. module load or conda).
+# Python 3.10 on PATH (or `AXIS_PYTHON=…`) + pip; ensure `dcm2niix` is on PATH (e.g. module load or conda).
 ./dev/setup_local_models.sh
+# If you still have an old `.venv312` from earlier docs, remove or ignore it; the venv directory is now `.venv`.
 ```
 
-That creates `.venv312`, installs dependencies, downloads TotalSegmentator **total** weights and **Task135_KiTS2021**, and writes `dev/axis_local_env.sh` with **machine-local** nnU-Net directories under the clone.
+That creates `.venv`, installs dependencies, downloads TotalSegmentator **total** weights and **Task135_KiTS2021**, and writes `dev/axis_local_env.sh` with **machine-local** nnU-Net directories under the clone.
 
 Copy or link **PNvsRN weights** (`pnvrn_folds/`-style tree, 25× `.pth`) somewhere readable on the cluster and set `AXIS_WEIGHTS_DIR` if it is not `<repo>/pnvrn_folds`.
 
@@ -261,7 +262,7 @@ Logs: `axis-kits-cpu-<jobid>.out` / `.err` in the submission directory.
 | Entry | `axis-pn predict … --device cpu` (see `dev/docker-predict.sh`) | `dev/run_local_kits.sh` → same CLI flags + CT series selection |
 | nnU-Net v1/v2 + TotalSegmentator dirs | Set in `Dockerfile` / `docker/entrypoint.sh` | Set by `dev/setup_local_models.sh` → `dev/axis_local_env.sh` |
 | Tumor model | Task135 zip baked into image | Downloaded by `setup_local_models.sh` |
-| Python | 3.11 in `Dockerfile` | 3.12 in `setup_local_models.sh` (both supported) |
+| Python | 3.11 in `Dockerfile` | 3.10 default in `setup_local_models.sh` (`AXIS_PYTHON` to override; `>=3.10` per `pyproject.toml`) |
 
 For a laptop or server **with** Docker, use [step 5 under Quick start](#5-same-thing-with-docker) (or the [Docker](#docker) section) so external testers can reproduce the same flow without a cluster.
 

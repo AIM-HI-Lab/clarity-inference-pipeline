@@ -2,7 +2,14 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV_DIR="${REPO_ROOT}/.venv312"
+# Default matches typical HPC clusters; override e.g. AXIS_PYTHON=python3.12 on a dev machine.
+AXIS_PYTHON="${AXIS_PYTHON:-python3.10}"
+if ! command -v "${AXIS_PYTHON}" >/dev/null 2>&1; then
+  echo "Python interpreter not found: ${AXIS_PYTHON}" >&2
+  echo "Install Python 3.10+ or set AXIS_PYTHON to a working executable." >&2
+  exit 1
+fi
+VENV_DIR="${REPO_ROOT}/.venv"
 PYTHON_BIN="${VENV_DIR}/bin/python"
 PIP_BIN="${VENV_DIR}/bin/pip"
 
@@ -27,7 +34,7 @@ EOF
 chmod +x "${REPO_ROOT}/dev/axis_local_env.sh"
 
 if [[ ! -x "${PYTHON_BIN}" ]]; then
-  python3.12 -m venv "${VENV_DIR}"
+  "${AXIS_PYTHON}" -m venv "${VENV_DIR}"
 fi
 
 "${PIP_BIN}" install --upgrade pip "setuptools<82" wheel
@@ -63,6 +70,7 @@ nnUNet_install_pretrained_model_from_zip "${MODEL_ZIP}"
 
 echo
 echo "Setup complete."
+echo "Python: ${AXIS_PYTHON} → ${VENV_DIR}"
 echo "Environment file: ${REPO_ROOT}/dev/axis_local_env.sh"
 echo "Legacy KiTS model root: ${AXIS_NNUNET_V1_RESULTS}"
 echo "TotalSegmentator cache: ${TOTALSEG_HOME_DIR}"

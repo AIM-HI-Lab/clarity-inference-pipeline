@@ -17,6 +17,7 @@
 #   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
 #
 # Optional overrides (export before sbatch or pass via --export):
+#   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
 #   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
 #   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
 #   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
@@ -38,8 +39,8 @@ export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
 export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits}"
 export AXIS_DEVICE="${AXIS_DEVICE:-cpu}"
 
-if [[ ! -x "${REPO_ROOT}/.venv312/bin/axis-pn" ]]; then
-  echo "Missing .venv312 with axis-pn. On a login/build node, run once from the repo root:" >&2
+if [[ ! -x "${REPO_ROOT}/.venv/bin/axis-pn" ]]; then
+  echo "Missing .venv with axis-pn. On a login/build node, run once from the repo root (uses python3.10 by default):" >&2
   echo "  ./dev/setup_local_models.sh" >&2
   exit 1
 fi
