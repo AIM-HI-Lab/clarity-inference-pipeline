@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=axis-kits-gpu
+#SBATCH --partition=gpu
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=90000
+# GPU request — adjust to your site (examples):
+#SBATCH --gres=gpu:1
+# Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
+#SBATCH --output=axis-kits-gpu-%j.out
+#SBATCH --error=axis-kits-gpu-%j.err
+#
+# KiTS dry run on GPU: same flow as dev/run_local_kits.sh with AXIS_DEVICE=cuda.
+# --mem is in megabytes on typical Slurm sites (90000 ≈ 88 GiB).
+#
+# Submit (example):
+#   cd /path/to/axis-inference-pipeline
+#   sbatch dev/slurm_gpu_kits.job
+#
+# Pick a case:
+#   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job
+#
+# Optional overrides (export before sbatch or pass via --export):
+#   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
+#   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
+#   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
+#   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
+#
+# If your cluster uses a different GPU syntax, replace or edit the #SBATCH --gres line
+# (e.g. --gpus-per-node=1, or partition-specific flags).
+#
+set -euo pipefail
+
+CASE_NAME="${CASE_NAME:-KiTS-00000}"
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_ROOT}"
+
+CPUS="${SLURM_CPUS_PER_TASK:-12}"
+export OMP_NUM_THREADS="${CPUS}"
+export MKL_NUM_THREADS="${CPUS}"
+export OPENBLAS_NUM_THREADS="${CPUS}"
+export NUMEXPR_NUM_THREADS="${CPUS}"
+
+# AIM-HI Lab layout: .../kits-dicoms/c4kc_kits/KiTS-XXXXX
+export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits}"
+export AXIS_DEVICE="${AXIS_DEVICE:-cuda}"
+
+if [[ ! -x "${REPO_ROOT}/.venv/bin/axis-pn" ]]; then
+  echo "Missing .venv with axis-pn. On a login/build node, run once from the repo root (uses python3.10 by default):" >&2
+  echo "  ./dev/setup_local_models.sh" >&2
+  echo "For GPU, ensure PyTorch in that venv is built for CUDA (see README cluster GPU note)." >&2
+  exit 1
+fi
+
+exec bash "${REPO_ROOT}/dev/run_local_kits.sh" "${CASE_NAME}"

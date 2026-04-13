@@ -255,6 +255,17 @@ Logs: `axis-kits-cpu-<jobid>.out` / `.err` in the submission directory.
 
 **Runtime (rough, one patient, CPU):** dominated by TotalSegmentator (full **total** task) and nnU-Net tumor inference, then 25-fold SWP inference. Expect **on the order of several hours** per typical KiTS CT on a large CPU node—often roughly **~4–12+ hours** depending on voxel size, slice count, filesystem speed, and cluster load. Treat this as a **dry-run / validation** window, not a tight SLA.
 
+### GPU job (`gpu` partition)
+
+`dev/slurm_gpu_kits.job` requests **partition `gpu`**, **1 task**, **12 CPUs/task**, **`--mem=90000`** (megabytes on typical Slurm), **`--gres=gpu:1`**, and runs with **`AXIS_DEVICE=cuda`** (override with `AXIS_DEVICE` if needed). Edit the `#SBATCH` lines if your site uses different GPU or memory syntax.
+
+```bash
+chmod +x dev/slurm_gpu_kits.job
+sbatch dev/slurm_gpu_kits.job
+```
+
+**Do you need a separate venv?** **No** — use the **same** `.venv` from `./dev/setup_local_models.sh` as for CPU. You still need **`axis-pn`** and deps installed there. For **`--device cuda`**, the PyTorch inside that venv must be **CUDA-enabled** (many default `pip install torch` wheels on clusters are CPU-only). After the normal setup, install a CUDA build that matches your node’s driver/CUDA stack, e.g. follow [PyTorch’s install selector](https://pytorch.org/get-started/locally/), or use a cluster module for PyTorch and point `AXIS_PYTHON` at that environment if your admins recommend it.
+
 ### Parity with Docker (same software path)
 
 | Piece | Docker (CPU image) | Cluster (this repo) |
