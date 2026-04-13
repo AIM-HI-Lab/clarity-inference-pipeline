@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=axis-kits-cpu
+#SBATCH --partition=xtreme
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=96
+#SBATCH --mem=2T
+# Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
+#
+# KiTS dry run on CPU (same flow as dev/run_local_kits.sh / Docker CPU predict).
+#
+# Submit (example):
+#   cd /path/to/axis-inference-pipeline
+#   sbatch dev/slurm_xtreme_kits_cpu.job
+#
+# Pick a case:
+#   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
+#
+# Optional overrides (export before sbatch or pass via --export):
+#   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
+#   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
+#   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
+#   AXIS_DEVICE      — default cpu (do not change for this job)
+#
+set -euo pipefail
+
+CASE_NAME="${CASE_NAME:-KiTS-00000}"
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_ROOT}"
+
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
+export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
+export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
+export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
+
+# AIM-HI Lab layout: .../kits-dicoms/c4kc_kits/KiTS-XXXXX
+export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits}"
+export AXIS_DEVICE="${AXIS_DEVICE:-cpu}"
+
+if [[ ! -x "${REPO_ROOT}/.venv312/bin/axis-pn" ]]; then
+  echo "Missing .venv312 with axis-pn. On a login/build node, run once from the repo root:" >&2
+  echo "  ./dev/setup_local_models.sh" >&2
+  exit 1
+fi
+
+exec bash "${REPO_ROOT}/dev/run_local_kits.sh" "${CASE_NAME}"

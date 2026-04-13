@@ -198,6 +198,73 @@ You can override them with:
 AXIS_DEVICE=cuda AXIS_KITS_ROOT=/path/to/c4kc_kits bash dev/run_local_kits.sh KiTS-00000
 ```
 
+## Cluster dry run (Slurm, CPU, no Docker)
+
+This is the path for **validating the pipeline on a shared HPC node** when you cannot use Docker (typical on clusters). It runs the **same** `axis-pn predict` path as `dev/run_local_kits.sh`, which matches the default Docker invocation: TotalSegmentator **total** task, **nnU-Net v1** KiTS21 tumor model (`Task135`, `3d_cascade_fullres`), then SWP ensemble inference with **`--device cpu`**.
+
+### Data layout (KiTS)
+
+Point `AXIS_KITS_ROOT` at the directory that **directly contains** one folder per case:
+
+```text
+/path/to/kits-dicoms/c4kc_kits/
+  KiTS-00000/
+    ... nested DICOM series folders ...
+  KiTS-00001/
+  ...
+```
+
+Example used for AIM-HI Lab storage: `/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits`. Each `KiTS-XXXXX` directory should contain the usual nested DICOM tree (the helper picks a diagnostic **CT** series and skips **SEG**).
+
+### One-time setup on the cluster
+
+From an interactive session on a **login or build node** (adjust paths):
+
+```bash
+git clone https://github.com/AIM-HI-Lab/axis-inference-pipeline.git
+cd axis-inference-pipeline
+# Python 3.12 + pip; ensure `dcm2niix` is on PATH (e.g. module load or conda).
+./dev/setup_local_models.sh
+```
+
+That creates `.venv312`, installs dependencies, downloads TotalSegmentator **total** weights and **Task135_KiTS2021**, and writes `dev/axis_local_env.sh` with **machine-local** nnU-Net directories under the clone.
+
+Copy or link **PNvsRN weights** (`pnvrn_folds/`-style tree, 25× `.pth`) somewhere readable on the cluster and set `AXIS_WEIGHTS_DIR` if it is not `<repo>/pnvrn_folds`.
+
+### Submit a single-patient CPU job (`xtreme`)
+
+The batch file requests **1 node**, **96 CPUs**, **2.0 TB RAM**, partition **`xtreme`**, and **no** wall-clock limit (your site may still inject a default cap—add `#SBATCH --time=…` to the job file if required).
+
+```bash
+cd /path/to/axis-inference-pipeline
+chmod +x dev/slurm_xtreme_kits_cpu.job
+# Optional: export AXIS_KITS_ROOT=/your/path/c4kc_kits
+# Optional: export AXIS_WEIGHTS_DIR=/your/path/pnvrn_folds
+# Optional: export AXIS_WORK_ROOT=/your/scratch/axis-runs
+sbatch dev/slurm_xtreme_kits_cpu.job
+```
+
+Run a specific case (default in the script is `KiTS-00000`):
+
+```bash
+sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
+```
+
+Logs: `axis-kits-cpu-<jobid>.out` / `.err` in the submission directory.
+
+**Runtime (rough, one patient, CPU):** dominated by TotalSegmentator (full **total** task) and nnU-Net tumor inference, then 25-fold SWP inference. Expect **on the order of several hours** per typical KiTS CT on a large CPU node—often roughly **~4–12+ hours** depending on voxel size, slice count, filesystem speed, and cluster load. Treat this as a **dry-run / validation** window, not a tight SLA.
+
+### Parity with Docker (same software path)
+
+| Piece | Docker (CPU image) | Cluster (this repo) |
+| --- | --- | --- |
+| Entry | `axis-pn predict … --device cpu` (see `dev/docker-predict.sh`) | `dev/run_local_kits.sh` → same CLI flags + CT series selection |
+| nnU-Net v1/v2 + TotalSegmentator dirs | Set in `Dockerfile` / `docker/entrypoint.sh` | Set by `dev/setup_local_models.sh` → `dev/axis_local_env.sh` |
+| Tumor model | Task135 zip baked into image | Downloaded by `setup_local_models.sh` |
+| Python | 3.11 in `Dockerfile` | 3.12 in `setup_local_models.sh` (both supported) |
+
+For a laptop or server **with** Docker, use [step 5 under Quick start](#5-same-thing-with-docker) (or the [Docker](#docker) section) so external testers can reproduce the same flow without a cluster.
+
 ## Docker
 
 The image installs `axis-inference-pipeline`, `TotalSegmentator`, nnU-Net v2, **legacy nnU-Net v1** (KiTS21 tumor), downloads TotalSegmentator `total` task weights, and installs **Task135_KiTS2021** under `/opt/nnunet/v1/results`. You still need **PNvsRN `.pth` weights** (same tree as `pnvrn_folds/`): mount them and pass `--weights-dir`.
