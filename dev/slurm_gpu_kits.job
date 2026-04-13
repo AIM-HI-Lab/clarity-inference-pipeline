@@ -7,8 +7,6 @@
 # GPU request — adjust to your site (examples):
 #SBATCH --gres=gpu:1
 # Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
-#SBATCH --output=axis-kits-gpu-%j.out
-#SBATCH --error=axis-kits-gpu-%j.err
 #
 # KiTS dry run on GPU: same flow as dev/run_local_kits.sh with AXIS_DEVICE=cuda.
 # --mem is in megabytes on typical Slurm sites (90000 ≈ 88 GiB).
