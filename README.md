@@ -282,9 +282,21 @@ sbatch dev/slurm_gpu_kits.job
 
 **Do you need a separate venv?** **No** — use the same `.venv` from `./dev/setup_local_models.sh`. GPU jobs need a **CUDA** PyTorch build that fits the **driver** on the compute nodes; `setup_local_models.sh` handles that via **`AXIS_PYTORCH_CUDA`** (see above). If you see **`The NVIDIA driver on your system is too old`** from TotalSegmentator or nnU-Net, reinstall with **`AXIS_PYTORCH_CUDA=cu118`** (or run the `pip install …/whl/cu118` one-liner above).
 
-**Run `nvidia-smi` on a GPU node** before setup if login nodes have no GPU — `auto` uses the reported “CUDA Version” line. If that line is missing or wrong, set **`AXIS_PYTORCH_CUDA`** explicitly.
+**Still no GPU (`torch.cuda.is_available()` false)?** Run **`./dev/check_gpu_env.sh`** on a **GPU compute node** (or an interactive GPU session), not only on a login node.
 
-**nnU-Net / TotalSegmentator “CUDA is not available”:** Both use the **same PyTorch** as the rest of the venv. If `torch.cuda.is_available()` is false, nnU-Net falls back to CPU (those `GradScaler` / `autocast` messages). Fix PyTorch + driver as above, and ensure the Slurm job actually has a GPU (**`#SBATCH --gres=gpu:1`**, and **`echo $CUDA_VISIBLE_DEVICES`** in the job should be non-empty). Optional: **`AXIS_DEBUG_CUDA=1`** in `dev/slurm_gpu_kits.job` runs a quick `nvidia-smi` + torch check before the pipeline.
+1. **Slurm must expose a GPU** — `#SBATCH --gres=gpu:1` (or your site’s flag). In the job, `echo $CUDA_VISIBLE_DEVICES` should not be empty.
+2. **PyTorch must be a CUDA wheel** — If setup ran on a **login node without `nvidia-smi`**, older `auto` logic installed **CPU-only** torch. Current `setup_local_models.sh` defaults **Linux + no `nvidia-smi` → `cu118`**. If your venv still has CPU torch, **reinstall CUDA PyTorch** (no need to delete the whole venv):
+   ```bash
+   cd /path/to/axis-inference-pipeline
+   AXIS_PYTORCH_CUDA=cu118 ./dev/setup_local_models.sh
+   ```
+   Or only torch:
+   ```bash
+   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118
+   ```
+   Then run **`./dev/check_gpu_env.sh`** again until `torch.cuda.is_available(): True`.
+
+**nnU-Net / TotalSegmentator “CUDA is not available”:** Same PyTorch as everything else. Optional: **`AXIS_DEBUG_CUDA=1`** with `dev/slurm_gpu_kits.job` prints `nvidia-smi` + a torch check before the pipeline.
 
 ### Parity with Docker (same software path)
 

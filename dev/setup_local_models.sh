@@ -44,7 +44,8 @@ fi
 # NVIDIA driver than many shared clusters provide. Reinstall torch/torchvision from the PyTorch
 # wheel index that matches the *driver* (see nvidia-smi "CUDA Version: X.Y").
 #   AXIS_PYTORCH_CUDA=auto|cpu|cu118|cu121|cu124|skip
-#   auto — pick from nvidia-smi (falls back to cu118 if unsure); cpu — CPU-only wheels
+#   auto — pick from nvidia-smi; on Linux if nvidia-smi is missing (common on login nodes), use cu118
+#   cpu — CPU-only wheels
 #   skip — do not touch torch after `pip install -e .`
 AXIS_PYTORCH_CUDA="${AXIS_PYTORCH_CUDA:-auto}"
 if [[ "${AXIS_PYTORCH_CUDA}" != "skip" ]]; then
@@ -57,7 +58,14 @@ def main() -> None:
     try:
         out = subprocess.check_output(["nvidia-smi"], text=True, stderr=subprocess.DEVNULL, timeout=60)
     except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        print("cpu")
+        # Login nodes often have no GPU and no nvidia-smi; CPU-only torch breaks GPU jobs later.
+        # On Linux, default to cu118 so compute nodes can use CUDA (still runs on CPU if no GPU).
+        import sys
+
+        if sys.platform == "linux":
+            print("cu118")
+        else:
+            print("cpu")
         return
     m = re.search(r"CUDA Version:\s*(\d+)\.(\d+)", out)
     if not m:
@@ -133,3 +141,21 @@ echo "Python: ${AXIS_PYTHON} → ${VENV_DIR}"
 echo "Environment file: ${REPO_ROOT}/dev/axis_local_env.sh"
 echo "Legacy KiTS model root: ${AXIS_NNUNET_V1_RESULTS}"
 echo "TotalSegmentator cache: ${TOTALSEG_HOME_DIR}"
+echo
+"${PYTHON_BIN}" - <<'PY'
+import torch
+
+print(
+    "PyTorch:",
+    torch.__version__,
+    "| cuda built:",
+    torch.version.cuda,
+    "| cuda available now:",
+    torch.cuda.is_available(),
+)
+if not torch.cuda.is_available():
+    print(
+        "  (If you use GPU jobs: run setup on a GPU node or set AXIS_PYTORCH_CUDA=cu118 before setup;"
+        " or run: dev/check_gpu_env.sh on a compute node.)"
+    )
+PY
