@@ -33,11 +33,11 @@ def run_totalsegmentator(
     output_dir.mkdir(parents=True, exist_ok=True)
     binary = resolve_totalsegmentator_binary(config)
     cmd: list[str] = [binary, "-i", str(input_image), "-o", str(output_dir)]
-    if config.device:
-        # TotalSegmentator: --device gpu|cpu|mps (we map cuda → gpu).
-        ts_dev = "gpu" if config.device == "cuda" else config.device
-        if ts_dev in ("gpu", "cpu", "mps"):
-            cmd.extend(["--device", ts_dev])
+    # Only force CPU when the pipeline asks for it. For cuda/None, omit --device so
+    # TotalSegmentator uses its default (GPU if torch.cuda.is_available()). Passing
+    # --device gpu explicitly has broken some installs / versions.
+    if config.device == "cpu":
+        cmd.extend(["--device", "cpu"])
     if config.task:
         cmd.extend(["--task", config.task])
     cmd.extend(list(config.extra_args))
