@@ -3,7 +3,7 @@
 #SBATCH --partition=gpu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=12
-#SBATCH --mem=60000
+#SBATCH --mem=32200
 #SBATCH --gres=gpu:1
 # Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
 #
