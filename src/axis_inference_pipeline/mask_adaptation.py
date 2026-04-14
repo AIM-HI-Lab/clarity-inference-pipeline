@@ -4,8 +4,17 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Sequence
 
 from .config import MaskAdaptationConfig
+
+
+def _nnunet_labels_to_uint8(tumor_data):
+    """Match SWP cache (data_loader_v5): discrete labels from float nnU-Net NIfTI voxels."""
+
+    import numpy as np
+
+    return np.round(np.asarray(tumor_data)).astype(np.uint8)
 
 
 def _resample_to_reference(mask_path: Path, reference_image: Path, interpolation: str):
@@ -52,10 +61,10 @@ def create_swp_segmentation(
 
     if tumor_mask_path is not None and tumor_mask_path.exists():
         tumor_img = _resolve_mask(tumor_mask_path, config)
-        tumor_data = np.asarray(tumor_img.get_fdata())
-        tumor_mask = np.zeros(tumor_data.shape, dtype=bool)
+        tumor_u8 = _nnunet_labels_to_uint8(tumor_img.get_fdata())
+        tumor_mask = np.zeros(tumor_u8.shape, dtype=bool)
         for label in config.tumor_labels:
-            tumor_mask |= np.isclose(tumor_data, label)
+            tumor_mask |= tumor_u8 == int(label)
         output[tumor_mask] = 2
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -78,6 +87,28 @@ def adapt_masks(
         output_path=output_path,
         config=config,
     )
+
+
+def swp_segmentation_has_tumor_voxels(
+    segmentation_path: Path,
+    *,
+    tumor_label_ids: Sequence[int] | None = None,
+) -> bool:
+    """
+    Return True if ``segmentation_path`` contains at least one voxel in ``tumor_label_ids``.
+
+    axis-pn / SWP V5 require a non-empty primary (default label ``2``) to build patches.
+    """
+
+    import nibabel as nib
+    import numpy as np
+
+    ids = tumor_label_ids if tumor_label_ids is not None else (2,)
+    data = np.round(np.asarray(nib.load(str(segmentation_path)).get_fdata())).astype(np.uint8)
+    for lid in ids:
+        if np.any(data == int(lid)):
+            return True
+    return False
 
 
 def run_mask_tool_subprocess(

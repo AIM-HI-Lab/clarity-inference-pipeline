@@ -14,7 +14,7 @@ from .config import DicomPaths, PipelineConfig
 from .axis_pn import run_axis_pn_inference
 from .dicom import discover_series_roots, run_dcm2niix, stage_series_for_conversion
 from .dicom_sitk import convert_staged_dicom_to_nifti
-from .mask_adaptation import adapt_masks
+from .mask_adaptation import adapt_masks, swp_segmentation_has_tumor_voxels
 from .nifti_ct import select_primary_ct_nifti, write_nnunet_compatible_nifti
 from .phase_gating import run_phase_gating
 from .totalsegmentator import run_totalsegmentator
@@ -266,6 +266,16 @@ def run_pipeline(
         )
         case_steps.append("mask_adaptation")
         case_artifacts["segmentation"] = str(adapted)
+
+        if not config.skip_tumor and not swp_segmentation_has_tumor_voxels(adapted):
+            raise RuntimeError(
+                "Combined segmentation has no tumor voxels (SWP label 2). "
+                "axis-pn needs a non-empty tumor mask to sample patches. "
+                f"Inspect nnU-Net output {case_paths['tumor_segmentation']} (unique labels) "
+                f"and {adapted}. "
+                "Common causes: KiTS model predicts no tumor for this scan, wrong CT series "
+                "(use a diagnostic CT, not SEG), or a bad/cached tumor run."
+            )
 
         write_case_metadata(
             case_paths["metadata"],

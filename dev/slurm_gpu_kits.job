@@ -21,6 +21,9 @@
 #   sbatch dev/slurm_gpu_kits.job   # CASE_NAME defaults to ALL
 #
 # Optional overrides (export before sbatch or pass via --export):
+#   TMPDIR — nnU-Net may spill large predictions to disk ("output too large for process-process
+#            communication"); on slow BeeGFS/NFS this can take many minutes. Point to fast local
+#            scratch, e.g.: export TMPDIR=/tmp/$USER/axis-tmp && mkdir -p "$TMPDIR"
 #   AXIS_REPO_ROOT   — absolute path to repo root if this .job file is not under dev/ in the clone
 #   AXIS_VENV_DIR    — path to venv if not <repo>/.venv (must contain bin/axis-pn)
 #   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)

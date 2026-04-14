@@ -47,6 +47,36 @@ class MaskAdaptationTests(unittest.TestCase):
             self.assertEqual(int(data[1, 1, 1]), 1)
             self.assertEqual(int(data[2, 2, 2]), 2)
 
+    def test_adapt_masks_rounds_float_nnunet_labels(self) -> None:
+        """nnU-Net NIfTI can store discrete labels as float32; round like SWP cache."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            affine = np.eye(4)
+
+            kidney = np.zeros((4, 4, 4), dtype=np.uint8)
+            kidney[1:3, 1:3, 1:3] = 1
+            tumor = np.zeros((4, 4, 4), dtype=np.float32)
+            tumor[2, 2, 2] = np.float32(1.997)
+
+            kidney_path = root / "kidney_binary_mask.nii.gz"
+            tumor_path = root / "tumor_segmentation_v2.nii.gz"
+            ref_path = root / "imaging.nii.gz"
+            out_path = root / "segmentation.nii.gz"
+
+            nib.save(nib.Nifti1Image(kidney, affine), str(kidney_path))
+            nib.save(nib.Nifti1Image(tumor, affine), str(tumor_path))
+            nib.save(nib.Nifti1Image(np.zeros((4, 4, 4), dtype=np.uint8), affine), str(ref_path))
+
+            result = adapt_masks(
+                kidney_mask_path=kidney_path,
+                tumor_mask_path=tumor_path,
+                output_path=out_path,
+                config=MaskAdaptationConfig(reference_image=ref_path),
+            )
+
+            data = np.asarray(nib.load(str(result)).get_fdata())
+            self.assertEqual(int(data[2, 2, 2]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
