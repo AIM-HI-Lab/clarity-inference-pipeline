@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import Iterator
 
 from segmentation_weighted_planes.inference import (
-    _build_combined_payload,
     _build_external_dataset,
     _load_state_dict_flexible,
     _resolve_checkpoints,
-    run_full_validation_mil_with_progress,
+    build_prediction_only_payload,
+    run_prediction_mil_with_progress,
 )
 from segmentation_weighted_planes.mil_model import MILNet
 from segmentation_weighted_planes.projects import project_registry
@@ -88,7 +88,6 @@ def run_axis_pn_inference(
         }
         dataset = _build_external_dataset(project_class, training_inputs_json)
 
-        fold_results = []
         fold_case_tables = []
         for ckpt in ckpts:
             net = MILNet(
@@ -97,21 +96,15 @@ def run_axis_pn_inference(
                 topk=getattr(project_class, "topk", 8),
             ).to(TrainingParameters.DEVICE)
             _load_state_dict_flexible(net, ckpt)
-            metrics, val_rows = run_full_validation_mil_with_progress(
+            val_rows = run_prediction_mil_with_progress(
                 net,
                 dataset,
                 project_class,
                 desc=f"axis-pn | {ckpt.name}",
             )
-            fold_results.append({"checkpoint": str(ckpt), "metrics": metrics})
             fold_case_tables.append(val_rows)
 
-        combined = _build_combined_payload(
-            project_class,
-            ckpts,
-            fold_case_tables,
-            [fr["metrics"] for fr in fold_results],
-        )
+        combined = build_prediction_only_payload(project_class, ckpts, fold_case_tables)
 
     output_json.parent.mkdir(parents=True, exist_ok=True)
     output_json.write_text(json.dumps(combined, indent=2), encoding="utf-8")

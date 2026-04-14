@@ -156,8 +156,9 @@ def get_nifti_manifest_dataset_labels(
         print(f"Missing imaging/segmentation for {len(missing)} case(s): {missing[:20]}{'...' if len(missing) > 20 else ''}")
     if missing_label:
         print(
-            f"No ground-truth label for {len(missing_label)} case(s); "
-            f"using placeholder label 0 for caching/metrics: {missing_label[:20]}{'...' if len(missing_label) > 20 else ''}"
+            f"No per-case \"label\" in manifest for {len(missing_label)} case(s); "
+            f"using internal placeholder 0 (inference output does not use or report labels): "
+            f"{missing_label[:20]}{'...' if len(missing_label) > 20 else ''}"
         )
 
     if not img_rows:

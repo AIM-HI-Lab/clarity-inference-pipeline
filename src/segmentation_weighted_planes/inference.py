@@ -13,13 +13,7 @@ from segmentation_weighted_planes.data_loader_v5 import SWPDataset_V5, V5CacheCo
 from segmentation_weighted_planes.datasets.nifti_manifest import (
     get_nifti_manifest_dataset_labels,
 )
-from segmentation_weighted_planes.mil_model import (
-    MILNet,
-    get_binary_metrics,
-    get_continuous_metrics,
-    get_n_class_metrics,
-    validate_case_mil,
-)
+from segmentation_weighted_planes.mil_model import MILNet, validate_case_mil
 from segmentation_weighted_planes.projects import project_registry
 from segmentation_weighted_planes.training.training_parameters import TrainingParameters
 
@@ -117,70 +111,101 @@ def _build_external_dataset(project_class, training_inputs_json):
     return ds
 
 
-def _metrics_for(project_class, labels, preds, pred_probs):
-    if project_class.n_classes == 1:
-        return get_continuous_metrics(labels, preds, pred_probs)
-    if project_class.n_classes == 2:
-        return get_binary_metrics(labels, preds, pred_probs)
-    return get_n_class_metrics(labels, preds, pred_probs)
+def prediction_to_json(project_class, pred):
+    """Serialize MIL prediction for JSON (matches project output_type)."""
+
+    if project_class.output_type == "continuous":
+        return float(pred)
+    if project_class.output_type == "string":
+        return str(pred)
+    return int(pred)
 
 
-def run_full_validation_mil_with_progress(net, dataset: SWPDataset_V5, project_class, desc: str = "Cases"):
+def run_prediction_mil_with_progress(
+    net, dataset: SWPDataset_V5, project_class, desc: str = "Cases"
+) -> list[dict]:
     """
-    Same logic as trainer.run_full_validation_mil but with a tqdm progress bar per case.
+    Run forward inference per case. Does not compute AUC/accuracy or emit ground-truth labels.
+    Manifest/case labels in the dataset are ignored for reporting (still used internally by MIL).
     """
-    n_classes = project_class.n_classes
-    class_of_interest = project_class.class_of_interest
 
-    case_labels = []
-    case_preds = []
-    case_pred_probs = []
-    val_json = []
-
+    val_json: list[dict] = []
     n = len(dataset)
     it = range(n)
     if n > 0:
         it = tqdm(it, total=n, desc=desc, unit="case", dynamic_ncols=True)
 
     for case_idx in it:
-        pred_probs, pred, label, case = validate_case_mil(net, dataset, case_idx, project_class)
-
-        case_labels.append(label)
-        case_preds.append(pred)
-        if n_classes == 1:
-            case_pred_probs.append(pred_probs[0])
-        elif n_classes == 2:
-            case_pred_probs.append(pred_probs[class_of_interest])
-        else:
-            case_pred_probs.append(pred_probs)
-
-        if project_class.output_type == "continuous":
-            j_pred = float(pred)
-            j_lab = float(label)
-        elif project_class.output_type == "string":
-            j_pred = str(pred)
-            j_lab = str(label)
-        else:
-            j_pred = int(pred)
-            j_lab = int(label)
-
+        pred_probs, pred, _label, case = validate_case_mil(net, dataset, case_idx, project_class)
         val_json.append(
             {
                 "case_id": case,
-                "label": j_lab,
-                "pred": j_pred,
+                "pred": prediction_to_json(project_class, pred),
                 "pred_probs": [float(x) for x in pred_probs],
             }
         )
 
-    if n_classes == 1:
-        metrics = get_continuous_metrics(case_labels, case_preds, case_pred_probs)
-    elif n_classes == 2:
-        metrics = get_binary_metrics(case_labels, case_preds, case_pred_probs)
-    else:
-        metrics = get_n_class_metrics(case_labels, case_preds, case_pred_probs)
+    return val_json
 
-    return metrics, val_json
+
+def build_prediction_only_payload(project_class, ckpts: List[Path], fold_case_tables: List[list]) -> dict:
+    """Combine per-checkpoint prediction rows; no accuracy metrics or labels in output."""
+
+    if not fold_case_tables:
+        return {
+            "metadata": {
+                "project_name": project_class.project_name,
+                "n_checkpoints": 0,
+                "checkpoint_paths": [],
+                "evaluation_mode": "prediction_only",
+            },
+            "cases": [],
+        }
+
+    n_cases = len(fold_case_tables[0])
+    cases_out = []
+
+    for case_i in range(n_cases):
+        case_id = fold_case_tables[0][case_i]["case_id"]
+        per_model = []
+        for f, ckpt in enumerate(ckpts):
+            row = fold_case_tables[f][case_i]
+            per_model.append(
+                {
+                    "checkpoint": str(ckpt),
+                    "pred": row["pred"],
+                    "pred_probs": [float(x) for x in row["pred_probs"]],
+                }
+            )
+
+        probs_mat = np.array([fold_case_tables[f][case_i]["pred_probs"] for f in range(len(ckpts))])
+        mean_probs = probs_mat.mean(axis=0).tolist()
+
+        if project_class.n_classes == 1:
+            ensemble_pred = float(mean_probs[0])
+        elif project_class.n_classes == 2:
+            ensemble_pred = int(mean_probs[1] >= 0.5)
+        else:
+            ensemble_pred = int(np.argmax(mean_probs))
+
+        cases_out.append(
+            {
+                "case_id": case_id,
+                "per_model": per_model,
+                "ensemble_pred_probs": [float(x) for x in mean_probs],
+                "ensemble_pred": ensemble_pred,
+            }
+        )
+
+    return {
+        "metadata": {
+            "project_name": project_class.project_name,
+            "n_checkpoints": len(ckpts),
+            "checkpoint_paths": [str(p) for p in ckpts],
+            "evaluation_mode": "prediction_only",
+        },
+        "cases": cases_out,
+    }
 
 
 def _resolve_checkpoints(
@@ -220,93 +245,6 @@ def _resolve_checkpoints(
     )
 
 
-def _build_combined_payload(
-    project_class,
-    ckpts: List[Path],
-    fold_case_tables: List[list],
-    fold_metrics: List[dict],
-):
-    if not fold_case_tables:
-        return {
-            "metadata": {
-                "project_name": project_class.project_name,
-                "n_checkpoints": 0,
-                "checkpoint_paths": [],
-            },
-            "ensemble_metrics": {},
-            "per_checkpoint_metrics": [],
-            "cases": [],
-        }
-
-    n_cases = len(fold_case_tables[0])
-    cases_out = []
-
-    for case_i in range(n_cases):
-        case_id = fold_case_tables[0][case_i]["case_id"]
-        label = fold_case_tables[0][case_i]["label"]
-        per_model = []
-        for f, ckpt in enumerate(ckpts):
-            row = fold_case_tables[f][case_i]
-            per_model.append(
-                {
-                    "checkpoint": str(ckpt),
-                    "pred": row["pred"],
-                    "pred_probs": [float(x) for x in row["pred_probs"]],
-                }
-            )
-
-        probs_mat = np.array(
-            [fold_case_tables[f][case_i]["pred_probs"] for f in range(len(ckpts))]
-        )
-        mean_probs = probs_mat.mean(axis=0).tolist()
-
-        if project_class.n_classes == 1:
-            ensemble_pred = float(mean_probs[0])
-            prob_for_metric = ensemble_pred
-        elif project_class.n_classes == 2:
-            ensemble_pred = int(mean_probs[1] >= 0.5)
-            prob_for_metric = float(mean_probs[1])
-        else:
-            ensemble_pred = int(np.argmax(mean_probs))
-            prob_for_metric = mean_probs
-
-        cases_out.append(
-            {
-                "case_id": case_id,
-                "label": label,
-                "per_model": per_model,
-                "ensemble_pred_probs": [float(x) for x in mean_probs],
-                "ensemble_pred": ensemble_pred,
-            }
-        )
-
-    ens_labels = [c["label"] for c in cases_out]
-    ens_preds = [c["ensemble_pred"] for c in cases_out]
-    if project_class.n_classes == 1:
-        ens_probs = [c["ensemble_pred_probs"][0] for c in cases_out]
-    elif project_class.n_classes == 2:
-        ens_probs = [c["ensemble_pred_probs"][1] for c in cases_out]
-    else:
-        ens_probs = [c["ensemble_pred_probs"] for c in cases_out]
-
-    ensemble_metrics = _metrics_for(project_class, ens_labels, ens_preds, ens_probs)
-
-    per_checkpoint_metrics = [
-        {"checkpoint": str(ckpt), "metrics": m} for ckpt, m in zip(ckpts, fold_metrics)
-    ]
-
-    return {
-        "metadata": {
-            "project_name": project_class.project_name,
-            "n_checkpoints": len(ckpts),
-            "checkpoint_paths": [str(p) for p in ckpts],
-        },
-        "ensemble_metrics": ensemble_metrics,
-        "per_checkpoint_metrics": per_checkpoint_metrics,
-        "cases": cases_out,
-    }
-
-
 def _effective_array_task_id(cli_value: Optional[int]) -> Optional[int]:
     if cli_value is not None:
         return cli_value
@@ -322,7 +260,6 @@ def _write_shard(
     array_task_id: int,
     n_checkpoints_total: int,
     checkpoint: Path,
-    metrics: dict,
     val_rows: list,
 ):
     payload = {
@@ -332,7 +269,7 @@ def _write_shard(
         "checkpoint_index": array_task_id,
         "n_checkpoints_total": n_checkpoints_total,
         "checkpoint_path": str(checkpoint.resolve()),
-        "metrics": metrics,
+        "evaluation_mode": "prediction_only",
         "val_rows": val_rows,
     }
     shard_path.parent.mkdir(parents=True, exist_ok=True)
@@ -378,7 +315,6 @@ def run_merge_shards(
 
     ckpts = [Path(s["checkpoint_path"]) for s in shards]
     fold_case_tables = [s["val_rows"] for s in shards]
-    fold_metrics = [s["metrics"] for s in shards]
 
     for i, s in enumerate(shards):
         if int(s["checkpoint_index"]) != i:
@@ -386,27 +322,18 @@ def run_merge_shards(
                 f"Shard checkpoint_index mismatch: expected contiguous 0..N-1, got index {s['checkpoint_index']!r} at position {i}"
             )
 
-    combined = _build_combined_payload(project_class, ckpts, fold_case_tables, fold_metrics)
+    combined = build_prediction_only_payload(project_class, ckpts, fold_case_tables)
     output_json.parent.mkdir(parents=True, exist_ok=True)
     with output_json.open("w") as f:
         json.dump(combined, f, indent=2)
-
-    aux_dir = output_json.parent
-    with (aux_dir / "all_checkpoint_metrics.json").open("w") as f:
-        json.dump(
-            [{"checkpoint": str(c), "metrics": m} for c, m in zip(ckpts, fold_metrics)],
-            f,
-            indent=2,
-        )
-    with (aux_dir / "ensemble_metrics.json").open("w") as f:
-        json.dump(combined["ensemble_metrics"], f, indent=2)
 
     print(f"Merged {len(shards)} shards -> {output_json}")
 
 
 def main():
     parser = ArgumentParser(
-        description="External validation: one or more .pth checkpoints; optional Slurm array (one model per task)."
+        description="SWP inference: one or more .pth checkpoints; optional Slurm array (one model per task). "
+        "Outputs predictions only (no AUC/accuracy; labels in manifests are not reported)."
     )
     parser.add_argument("--project-name", type=str, required=True)
 
@@ -554,7 +481,6 @@ def main():
             f"  shard file: {output_dir / f'inference_shard_{array_task_id:05d}.json'}"
         )
 
-    fold_results = []
     fold_case_tables = []
 
     for i, ckpt in enumerate(ckpts):
@@ -569,10 +495,9 @@ def main():
             topk=getattr(project_class, "topk", 8),
         ).to(TrainingParameters.DEVICE)
         _load_state_dict_flexible(net, ckpt)
-        metrics, val_rows = run_full_validation_mil_with_progress(
+        val_rows = run_prediction_mil_with_progress(
             net, ext_ds, project_class, desc=f"{label} | cases"
         )
-        fold_results.append({"checkpoint": str(ckpt), "metrics": metrics})
         fold_case_tables.append(val_rows)
 
         if array_task_id is not None:
@@ -584,7 +509,6 @@ def main():
                 array_task_id,
                 n_total,
                 ckpt,
-                metrics,
                 val_rows,
             )
             print(f"[inference] Wrote shard: {shard_path}")
@@ -597,26 +521,16 @@ def main():
                 f"    --output-json <path/to/combined.json>"
             )
         else:
-            with (output_dir / f"checkpoint_{i}_metrics.json").open("w") as f:
-                json.dump(metrics, f, indent=2)
             with (output_dir / f"checkpoint_{i}_predictions.json").open("w") as f:
                 json.dump(val_rows, f, indent=2)
 
     if array_task_id is not None:
         return
 
-    fold_metrics = [fr["metrics"] for fr in fold_results]
-    combined = _build_combined_payload(
-        project_class, ckpts_full, fold_case_tables, fold_metrics
-    )
+    combined = build_prediction_only_payload(project_class, ckpts_full, fold_case_tables)
 
     with main_json_path.open("w") as f:
         json.dump(combined, f, indent=2)
-
-    with (output_dir / "all_checkpoint_metrics.json").open("w") as f:
-        json.dump(fold_results, f, indent=2)
-    with (output_dir / "ensemble_metrics.json").open("w") as f:
-        json.dump(combined["ensemble_metrics"], f, indent=2)
 
     print(f"\n[inference] Combined report: {main_json_path}")
     print(f"[inference] Aux outputs under: {output_dir}")

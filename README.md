@@ -79,6 +79,8 @@ axis-pn predict \
 
 Results: **`/path/to/output/run1/predictions/predictions.json`**, plus `cases/<SeriesInstanceUID>/` under the work dir.
 
+**Labels:** You do not need ground-truth diagnosis labels. Point `--input` at a folder of DICOMs in the usual layout (see [Input path](#input-path-always-a-folder)); the pipeline only needs imaging plus internally built segmentations. **`predictions/predictions.json` contains model predictions and probabilities only** (`evaluation_mode: "prediction_only"` in the JSON metadata). Optional `label` fields in `swp_manifest.json` are ignored for reporting.
+
 ### 4. Run on a directory tree (multiple series)
 
 Use the same command when `--input` is a parent folder that contains **several** series (nested folders are fine). The pipeline discovers all DICOM files under that tree recursively.
@@ -158,7 +160,9 @@ The work directory contains:
 - `predictions/predictions.json`
 - `run_manifest.json`
 
-`predictions/predictions.json` is the averaged ensemble output across all checkpoints.
+`predictions/predictions.json` is the averaged ensemble output across all checkpoints (per-case `ensemble_pred`, `ensemble_pred_probs`, and per-checkpoint rows). It does **not** include accuracy metrics or patient labels—suitable for external DICOM folders where labels are unknown.
+
+The vendored SWP CLI (`python -m segmentation_weighted_planes.inference`) follows the same rule: **prediction-only** combined JSON, no AUC/accuracy in the output.
 
 ## Local Dev Runner
 
