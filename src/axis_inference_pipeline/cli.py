@@ -17,11 +17,7 @@ from .config import (
 )
 from .dicom import resolve_dicom_backend
 from .pipeline import build_pipeline_config, run_pipeline
-from .pipeline_profile import (
-    resolve_totalsegmentator_device,
-    resolve_totalsegmentator_extra_args,
-    resolve_tumor_extra_args,
-)
+from .pipeline_profile import resolve_totalsegmentator_extra_args, resolve_tumor_extra_args
 
 app = typer.Typer(
     name="axis-pn",
@@ -97,13 +93,6 @@ def predict(
         typer.Option(
             "--totalseg-extra",
             help='Extra TotalSegmentator arguments (shell-style); else AXIS_TOTALSEG_EXTRA.',
-        ),
-    ] = None,
-    totalseg_device: Annotated[
-        Optional[str],
-        typer.Option(
-            "--totalseg-device",
-            help="TotalSegmentator --device (e.g. cpu, gpu). Default: match --device when it is cpu; else TotalSegmentator default. Env AXIS_TOTALSEG_DEVICE.",
         ),
     ] = None,
     tumor_binary: Annotated[
@@ -222,16 +211,8 @@ def predict(
         entrypoint=phase_entrypoint,
     )
     totalseg_extra_args = resolve_totalsegmentator_extra_args(cli_extra=totalseg_extra)
-    ts_dev = resolve_totalsegmentator_device(cli_device=totalseg_device)
-    if ts_dev is None and (device or "").strip().lower() == "cpu":
-        ts_dev = "cpu"
     tumor_extra_args = resolve_tumor_extra_args(cli_extra=tumor_extra)
-    ts_cfg = TotalSegmentatorConfig(
-        binary=totalseg_binary,
-        task=totalseg_task,
-        extra_args=totalseg_extra_args,
-        device=ts_dev,
-    )
+    ts_cfg = TotalSegmentatorConfig(binary=totalseg_binary, task=totalseg_task, extra_args=totalseg_extra_args)
     tumor_cfg = TumorSegmentationConfig(
         binary=tumor_binary,
         mode=tumor_mode,

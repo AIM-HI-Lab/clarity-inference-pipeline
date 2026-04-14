@@ -25,22 +25,6 @@ def resolve_totalsegmentator_extra_args(*, cli_extra: Optional[str]) -> tuple[st
     return ()
 
 
-def resolve_totalsegmentator_device(*, cli_device: Optional[str]) -> Optional[str]:
-    """
-    TotalSegmentator ``--device`` (cpu / gpu / cuda depending on version).
-
-    Precedence:
-
-    1. ``--totalseg-device`` (``cli_device``)
-    2. ``AXIS_TOTALSEG_DEVICE`` environment
-    """
-
-    if cli_device and cli_device.strip():
-        return cli_device.strip()
-    env = os.environ.get("AXIS_TOTALSEG_DEVICE", "").strip()
-    return env or None
-
-
 def resolve_tumor_extra_args(*, cli_extra: Optional[str]) -> tuple[str, ...]:
     """
     Extra arguments appended to the tumor segmentation command.

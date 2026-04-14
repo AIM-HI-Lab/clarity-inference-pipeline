@@ -141,7 +141,6 @@ Useful flags:
 - `--device cpu|cuda`: SWP inference device override
 - `--dicom-backend auto|dcm2niix|sitk`: DICOM→NIfTI via external **dcm2niix** (default **auto** picks it when on `PATH`) or in-process **SimpleITK** (GDCM). Env `AXIS_DICOM_BACKEND` overrides the flag.
 - `--totalseg-extra "..."` or env `AXIS_TOTALSEG_EXTRA`: optional extra TotalSegmentator CLI arguments (default: full `total` task).
-- `--totalseg-device cpu|gpu|…` or env `AXIS_TOTALSEG_DEVICE`: TotalSegmentator’s PyTorch device. Defaults to **cpu** when `--device cpu`; otherwise TotalSegmentator’s default (often GPU). Use **`cpu`** here if PyTorch warns your **NVIDIA driver is too old** while `--device cuda` is set for SWP.
 - `--tumor-extra "..."` or env `AXIS_TUMOR_EXTRA`: optional extra nnU-Net tumor-segmentation CLI arguments.
 - `--skip-inference`: stop after building SWP-ready NIfTI inputs
 - `--skip-tumor`: create kidney-only SWP masks
@@ -238,6 +237,9 @@ cd axis-inference-pipeline
 # If you still have an old `.venv312` from earlier docs, remove or ignore it; the venv directory is now `.venv`.
 ```
 
+**PyTorch + CUDA on shared GPU nodes:** plain `pip install torch` often pulls a **very new** CUDA build (e.g. cu124) that needs a **newer NVIDIA driver** than your admins provide. `setup_local_models.sh` reinstalls `torch` / `torchvision` from the [PyTorch wheel index](https://pytorch.org/get-started/locally/) using **`AXIS_PYTORCH_CUDA`** (default **`auto`**: reads `nvidia-smi`’s “CUDA Version: X.Y” and picks `cu118`, `cu121`, or `cu124`). Override when needed: `AXIS_PYTORCH_CUDA=cu118 ./dev/setup_local_models.sh` (most compatible). Values: **`auto`**, **`cpu`**, **`cu118`**, **`cu121`**, **`cu124`**, **`skip`** (leave whatever `pip install -e .` resolved). To fix an existing venv without a full re-run:  
+`.venv/bin/pip install --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu118`
+
 That creates `.venv`, installs dependencies, downloads TotalSegmentator **total** weights and **Task135_KiTS2021**, and writes `dev/axis_local_env.sh` with **machine-local** nnU-Net directories under the clone.
 
 Copy or link **PNvsRN weights** (`pnvrn_folds/`-style tree, 25× `.pth`) somewhere readable on the cluster and set `AXIS_WEIGHTS_DIR` if it is not `<repo>/pnvrn_folds`.
@@ -278,9 +280,9 @@ chmod +x dev/slurm_gpu_kits.job
 sbatch dev/slurm_gpu_kits.job
 ```
 
-**Do you need a separate venv?** **No** — use the **same** `.venv` from `./dev/setup_local_models.sh` as for CPU. You still need **`axis-pn`** and deps installed there. For **`--device cuda`**, the PyTorch inside that venv must be **CUDA-enabled** (many default `pip install torch` wheels on clusters are CPU-only). After the normal setup, install a CUDA build that matches your node’s driver/CUDA stack, e.g. follow [PyTorch’s install selector](https://pytorch.org/get-started/locally/), or use a cluster module for PyTorch and point `AXIS_PYTHON` at that environment if your admins recommend it.
+**Do you need a separate venv?** **No** — use the same `.venv` from `./dev/setup_local_models.sh`. GPU jobs need a **CUDA** PyTorch build that fits the **driver** on the compute nodes; `setup_local_models.sh` handles that via **`AXIS_PYTORCH_CUDA`** (see above). If you see **`The NVIDIA driver on your system is too old`** from TotalSegmentator or nnU-Net, reinstall with **`AXIS_PYTORCH_CUDA=cu118`** (or run the `pip install …/whl/cu118` one-liner above).
 
-**PyTorch says the NVIDIA driver is too old** (or CUDA init fails): the **GPU driver on the node** must be **new enough** for the **PyTorch CUDA build** you installed (e.g. a cu128 wheel can require a newer driver than the cluster has). **TotalSegmentator** uses the same PyTorch; it may warn and fall back. To run TotalSegmentator on **CPU** only while you debug drivers, set **`export AXIS_TOTALSEG_DEVICE=cpu`** (or `--totalseg-device cpu`) before `sbatch`. **nnU-Net** tumor and **SWP** (`--device cuda`) still need a working CUDA stack for GPU; if they also fail, use **`AXIS_DEVICE=cpu`** for an all-CPU run or reinstall PyTorch to match the host driver.
+**Run `nvidia-smi` on a GPU node** before setup if login nodes have no GPU — `auto` uses the reported “CUDA Version” line. If that line is missing or wrong, set **`AXIS_PYTORCH_CUDA`** explicitly.
 
 ### Parity with Docker (same software path)
 
