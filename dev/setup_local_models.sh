@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
+# Fresh clone / HPC workflow (recommended):
+#   module load python/gpu/3.10.6    # example — your site's GPU Python + CUDA paths
+#   cd axis-inference-pipeline
+#   export AXIS_PYTHON="$(command -v python3.10 2>/dev/null || command -v python3)"
+#   ./dev/setup_local_models.sh
+#
+# PyTorch is installed from PyTorch's CUDA wheel index *before* `pip install -e .` so the
+# dependency resolver does not leave you on a `+cpu` build, then installed again *after* to
+# overwrite any replacement from PyPI.
+#
+# AXIS_PYTORCH_CUDA=auto|cpu|cu118|cu121|cu124|skip
+#   auto — nvidia-smi "CUDA Version"; Linux + no nvidia-smi → cu118
+#
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# Default matches typical HPC clusters; override e.g. AXIS_PYTHON=python3.12 on a dev machine.
 AXIS_PYTHON="${AXIS_PYTHON:-python3.10}"
 if ! command -v "${AXIS_PYTHON}" >/dev/null 2>&1; then
   echo "Python interpreter not found: ${AXIS_PYTHON}" >&2
-  echo "Install Python 3.10+ or set AXIS_PYTHON to a working executable." >&2
+  echo "Load your module first, e.g. module load python/gpu/3.10.6" >&2
+  echo "Then: export AXIS_PYTHON=\"\$(command -v python3.10)\"" >&2
   exit 1
 fi
 VENV_DIR="${REPO_ROOT}/.venv"
@@ -38,55 +51,13 @@ if [[ ! -x "${PYTHON_BIN}" ]]; then
 fi
 
 "${PIP_BIN}" install --upgrade pip "setuptools<82" wheel
-"${PIP_BIN}" install -e .
 
-# PyTorch: default `pip` often installs a very new CUDA build (e.g. cu124) that needs a newer
-# NVIDIA driver than many shared clusters provide. Reinstall torch/torchvision from the PyTorch
-# wheel index that matches the *driver* (see nvidia-smi "CUDA Version: X.Y").
-#   AXIS_PYTORCH_CUDA=auto|cpu|cu118|cu121|cu124|skip
-#   auto — pick from nvidia-smi; on Linux if nvidia-smi is missing (common on login nodes), use cu118
-#   cpu — CPU-only wheels
-#   skip — do not touch torch after `pip install -e .`
 AXIS_PYTORCH_CUDA="${AXIS_PYTORCH_CUDA:-auto}"
-if [[ "${AXIS_PYTORCH_CUDA}" != "skip" ]]; then
-  if [[ "${AXIS_PYTORCH_CUDA}" == "auto" ]]; then
-    AXIS_PYTORCH_CUDA="$("${PYTHON_BIN}" - <<'PY'
-import re
-import subprocess
+TORCH_VARIANT=""
 
-def main() -> None:
-    try:
-        out = subprocess.check_output(["nvidia-smi"], text=True, stderr=subprocess.DEVNULL, timeout=60)
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        # Login nodes often have no GPU and no nvidia-smi; CPU-only torch breaks GPU jobs later.
-        # On Linux, default to cu118 so compute nodes can use CUDA (still runs on CPU if no GPU).
-        import sys
-
-        if sys.platform == "linux":
-            print("cu118")
-        else:
-            print("cpu")
-        return
-    m = re.search(r"CUDA Version:\s*(\d+)\.(\d+)", out)
-    if not m:
-        print("cu118")
-        return
-    major, minor = int(m.group(1)), int(m.group(2))
-    # Match PyTorch wheel to *maximum* CUDA version the driver supports (nvidia-smi header).
-    if (major, minor) >= (12, 4):
-        print("cu124")
-    elif (major, minor) >= (12, 1):
-        print("cu121")
-    else:
-        print("cu118")
-
-if __name__ == "__main__":
-    main()
-PY
-)"
-    echo "AXIS_PYTORCH_CUDA (resolved)=${AXIS_PYTORCH_CUDA}"
-  fi
-  case "${AXIS_PYTORCH_CUDA}" in
+_install_torch_wheels() {
+  local variant="$1"
+  case "${variant}" in
     cpu)
       "${PIP_BIN}" install --upgrade torch torchvision --index-url "https://download.pytorch.org/whl/cpu"
       ;;
@@ -100,10 +71,58 @@ PY
       "${PIP_BIN}" install --upgrade torch torchvision --index-url "https://download.pytorch.org/whl/cu124"
       ;;
     *)
-      echo "Unknown AXIS_PYTORCH_CUDA=${AXIS_PYTORCH_CUDA} (use auto, cpu, cu118, cu121, cu124, or skip)" >&2
+      echo "Unknown PyTorch variant: ${variant}" >&2
       exit 1
       ;;
   esac
+}
+
+if [[ "${AXIS_PYTORCH_CUDA}" != "skip" ]]; then
+  if [[ "${AXIS_PYTORCH_CUDA}" == "auto" ]]; then
+    TORCH_VARIANT="$("${PYTHON_BIN}" - <<'PY'
+import re
+import subprocess
+import sys
+
+def main() -> None:
+    try:
+        out = subprocess.check_output(["nvidia-smi"], text=True, stderr=subprocess.DEVNULL, timeout=60)
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        if sys.platform == "linux":
+            print("cu118")
+        else:
+            print("cpu")
+        return
+    m = re.search(r"CUDA Version:\s*(\d+)\.(\d+)", out)
+    if not m:
+        print("cu118")
+        return
+    major, minor = int(m.group(1)), int(m.group(2))
+    if (major, minor) >= (12, 4):
+        print("cu124")
+    elif (major, minor) >= (12, 1):
+        print("cu121")
+    else:
+        print("cu118")
+
+if __name__ == "__main__":
+    main()
+PY
+)"
+  else
+    TORCH_VARIANT="${AXIS_PYTORCH_CUDA}"
+  fi
+  echo "AXIS_PYTORCH_CUDA (resolved)=${TORCH_VARIANT}"
+  echo "Installing torch/torchvision (${TORCH_VARIANT}) before editable install…"
+  _install_torch_wheels "${TORCH_VARIANT}"
+fi
+
+echo "Installing axis-inference-pipeline (editable)…"
+"${PIP_BIN}" install -e .
+
+if [[ "${AXIS_PYTORCH_CUDA}" != "skip" ]]; then
+  echo "Re-installing torch/torchvision (${TORCH_VARIANT}) after editable install (prevents +cpu from PyPI)…"
+  _install_torch_wheels "${TORCH_VARIANT}"
 fi
 
 "${PIP_BIN}" install TotalSegmentator nnunetv2 nnunet
@@ -142,20 +161,28 @@ echo "Environment file: ${REPO_ROOT}/dev/axis_local_env.sh"
 echo "Legacy KiTS model root: ${AXIS_NNUNET_V1_RESULTS}"
 echo "TotalSegmentator cache: ${TOTALSEG_HOME_DIR}"
 echo
+export TORCH_VARIANT="${TORCH_VARIANT:-}"
 "${PYTHON_BIN}" - <<'PY'
+import os
+import sys
 import torch
 
 print(
     "PyTorch:",
     torch.__version__,
-    "| cuda built:",
+    "| cuda build:",
     torch.version.cuda,
     "| cuda available now:",
     torch.cuda.is_available(),
 )
-if not torch.cuda.is_available():
-    print(
-        "  (If you use GPU jobs: run setup on a GPU node or set AXIS_PYTORCH_CUDA=cu118 before setup;"
-        " or run: dev/check_gpu_env.sh on a compute node.)"
-    )
+tv = os.environ.get("TORCH_VARIANT", "")
+if tv in ("cu118", "cu121", "cu124") and sys.platform == "linux":
+    if torch.version.cuda is None:
+        print(
+            "ERROR: torch is still CPU-only (+cpu) after setup. "
+            "Try: .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/"
+            + tv,
+            file=sys.stderr,
+        )
+        sys.exit(1)
 PY

@@ -173,6 +173,7 @@ First-time setup:
 That script:
 
 - creates `.venv` (via `python3.10` unless `AXIS_PYTHON` is set)
+- installs **CUDA `torch` / `torchvision` from PyTorch’s wheel index** (before and after `pip install -e .`) so you do not stay on a **`+cpu`** build from PyPI
 - installs this package plus `TotalSegmentator`, `nnunetv2`, and `nnunet`
 - creates repo-local nnU-Net env directories
 - writes `dev/axis_local_env.sh`
@@ -225,22 +226,21 @@ Example used for AIM-HI Lab storage: `/home/jonnalr/AIM-HI-Lab/kits-dicoms`. Eac
 
 ### One-time setup on the cluster
 
-From an interactive session on a **login or build node** (adjust paths):
+From a **login or build node** (adjust module names to your site):
 
 ```bash
 git clone https://github.com/AIM-HI-Lab/axis-inference-pipeline.git
 cd axis-inference-pipeline
-# Python 3.10 on PATH (or `AXIS_PYTHON=…`) + pip.
+module load python/gpu/3.10.6    # example: GPU-capable Python + CUDA libs on PATH
+export AXIS_PYTHON="$(command -v python3.10 2>/dev/null || command -v python3)"
 ./dev/setup_local_models.sh
-# DICOM→NIfTI: `pip install -e .` brings SimpleITK; use `--dicom-backend auto` (default) or `sitk` without installing dcm2niix.
-# Optional external dcm2niix: `module load …`, conda-forge `dcm2niix`, or https://github.com/rordenlab/dcm2niix/releases — then `export AXIS_DCM2NIIX=/full/path/to/dcm2niix` if needed.
-# If you still have an old `.venv312` from earlier docs, remove or ignore it; the venv directory is now `.venv`.
 ```
 
-**PyTorch + CUDA on shared GPU nodes:** plain `pip install torch` often pulls a **very new** CUDA build (e.g. cu124) that needs a **newer NVIDIA driver** than your admins provide. `setup_local_models.sh` reinstalls `torch` / `torchvision` from the [PyTorch wheel index](https://pytorch.org/get-started/locally/) using **`AXIS_PYTORCH_CUDA`** (default **`auto`**: reads `nvidia-smi`’s “CUDA Version: X.Y” and picks `cu118`, `cu121`, or `cu124`). Override when needed: `AXIS_PYTORCH_CUDA=cu118 ./dev/setup_local_models.sh` (most compatible). Values: **`auto`**, **`cpu`**, **`cu118`**, **`cu121`**, **`cu124`**, **`skip`** (leave whatever `pip install -e .` resolved). To fix an existing venv without a full re-run:  
-`.venv/bin/pip install --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu118`
+`setup_local_models.sh` installs **`torch` / `torchvision` from the [PyTorch CUDA index](https://pytorch.org/get-started/locally/) twice** — **before** and **after** `pip install -e .` — so `pip` does not leave you on a **`+cpu`** wheel. `AXIS_PYTORCH_CUDA` (**`auto`** by default) reads **`nvidia-smi`** when available; on **Linux** without **`nvidia-smi`** it defaults to **`cu118`**. Override: **`AXIS_PYTORCH_CUDA=cu124`**, **`cu121`**, **`cu118`**, **`cpu`**, or **`skip`**.
 
-That creates `.venv`, installs dependencies, downloads TotalSegmentator **total** weights and **Task135_KiTS2021**, and writes `dev/axis_local_env.sh` with **machine-local** nnU-Net directories under the clone.
+DICOM→NIfTI: **`pip install -e .`** brings **SimpleITK**; use **`--dicom-backend auto`** (default) or **`sitk`** without **dcm2niix**. Optional: **`module load …`** for **dcm2niix**, or **`export AXIS_DCM2NIIX=/path/to/dcm2niix`**.
+
+That creates `.venv`, installs dependencies, downloads TotalSegmentator **total** weights and **Task135_KiTS2021**, and writes **`dev/axis_local_env.sh`**. On Linux, if you selected a CUDA variant but **`torch.version.cuda`** is still **`None`**, setup **exits with an error** so you do not proceed with a broken env.
 
 Copy or link **PNvsRN weights** (`pnvrn_folds/`-style tree, 25× `.pth`) somewhere readable on the cluster and set `AXIS_WEIGHTS_DIR` if it is not `<repo>/pnvrn_folds`.
 
