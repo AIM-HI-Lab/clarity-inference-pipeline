@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -151,3 +152,38 @@ def collect_files_for_series(
         if su == study_uid and se == series_uid:
             out.append(fp)
     return out
+
+
+def executable_available(binary: str) -> bool:
+    """True if ``binary`` is an executable path or a name found on ``PATH``."""
+
+    p = Path(binary).expanduser()
+    if p.is_file():
+        return os.access(p, os.X_OK)
+    return shutil.which(binary) is not None
+
+
+def resolve_dicom_backend(mode: str, dcm2niix_binary: str) -> str:
+    """
+    Resolve ``auto`` → ``dcm2niix`` when the binary exists, else ``sitk`` if SimpleITK imports.
+
+    ``mode`` is one of ``auto``, ``dcm2niix``, ``sitk`` (case-insensitive).
+    """
+
+    m = (mode or "auto").strip().lower()
+    if m == "dcm2niix":
+        return "dcm2niix"
+    if m == "sitk":
+        return "sitk"
+    if m == "auto":
+        if executable_available(dcm2niix_binary):
+            return "dcm2niix"
+        try:
+            import SimpleITK  # noqa: F401
+        except ImportError as e:
+            raise RuntimeError(
+                "dicom backend 'auto': dcm2niix is not on PATH and SimpleITK is not installed. "
+                "Install dcm2niix, or `pip install SimpleITK` and use --dicom-backend sitk."
+            ) from e
+        return "sitk"
+    raise ValueError(f"Unknown --dicom-backend {mode!r} (use auto, dcm2niix, or sitk).")

@@ -23,7 +23,8 @@
 #   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
 #   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
 #   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
-#   AXIS_DCM2NIIX    — full path to dcm2niix if not on PATH in batch jobs (common on clusters)
+#   AXIS_DICOM_BACKEND — auto (default), sitk, or dcm2niix; auto uses SimpleITK when dcm2niix is missing
+#   AXIS_DCM2NIIX    — full path to dcm2niix if you use --dicom-backend dcm2niix without it on PATH
 #   AXIS_DEVICE      — default cpu (do not change for this job)
 #
 set -euo pipefail

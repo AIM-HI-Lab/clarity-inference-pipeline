@@ -103,5 +103,7 @@ class PipelineConfig:
     skip_inference: bool = False
     # When True, skip DICOM→NIfTI, TotalSegmentator, and tumor if those outputs already exist under the workspace.
     reuse_cached_artifacts: bool = False
+    dicom_backend: str = "dcm2niix"
+    """``dcm2niix`` (external CLI) or ``sitk`` (SimpleITK / GDCM in-process)."""
     dcm2niix_binary: str = "dcm2niix"
     manifest_name: str = "run_manifest.json"

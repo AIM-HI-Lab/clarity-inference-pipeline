@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -14,6 +15,7 @@ from .config import (
     TotalSegmentatorConfig,
     TumorSegmentationConfig,
 )
+from .dicom import resolve_dicom_backend
 from .pipeline import build_pipeline_config, run_pipeline
 from .pipeline_profile import resolve_totalsegmentator_extra_args, resolve_tumor_extra_args
 
@@ -71,6 +73,13 @@ def predict(
         typer.Option("--skip-inference", help="Stop after building SWP-ready NIfTI inputs."),
     ] = False,
     dcm2niix: Annotated[str, typer.Option("--dcm2niix", help="dcm2niix executable name or path.")] = "dcm2niix",
+    dicom_backend: Annotated[
+        str,
+        typer.Option(
+            "--dicom-backend",
+            help="DICOM→NIfTI: dcm2niix (external), sitk (SimpleITK/GDCM), or auto (try dcm2niix then sitk). Env AXIS_DICOM_BACKEND overrides.",
+        ),
+    ] = "auto",
     totalseg_binary: Annotated[
         str,
         typer.Option("--totalseg-binary", help="TotalSegmentator executable name or path."),
@@ -230,6 +239,12 @@ def predict(
             "Provide --checkpoint-path, --checkpoint-dir, or --model-root unless --skip-inference is set."
         )
 
+    effective_dicom_backend = (os.environ.get("AXIS_DICOM_BACKEND") or "").strip() or dicom_backend
+    try:
+        dicom_resolved = resolve_dicom_backend(effective_dicom_backend, dcm2niix)
+    except (RuntimeError, ValueError) as e:
+        raise typer.BadParameter(str(e)) from e
+
     cfg = build_pipeline_config(
         workspace_root=workspace,
         dicom_input=input_dir,
@@ -241,6 +256,7 @@ def predict(
         skip_tumor=skip_tumor,
         skip_inference=skip_inference,
         reuse_cached_artifacts=reuse_cached_artifacts,
+        dicom_backend=dicom_resolved,
         dcm2niix_binary=dcm2niix,
         manifest_name=manifest_name,
     )

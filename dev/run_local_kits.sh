@@ -153,9 +153,10 @@ PY
   # Optional: add --force_split for huge volumes only (can break small/cropped scans):
   #   export AXIS_TOTALSEG_EXTRA="-fs -nr 2 -ns 2"
   #
-  # dcm2niix must be on PATH or passed via AXIS_DCM2NIIX (full path). HPC batch jobs often lack login-node modules unless you load them in the job or set the path explicitly.
+  # DICOM→NIfTI: default --dicom-backend auto (dcm2niix if on PATH, else SimpleITK). Set AXIS_DICOM_BACKEND=sitk to force in-process conversion without dcm2niix.
   #
   # Build one argv array so we never expand an empty array under `set -u`.
+  local _db="${AXIS_DICOM_BACKEND:-auto}"
   local -a AXIS_PREDICT_CMD=(
     "${AXIS_BIN}" predict
     --input "${SERIES_DIR}"
@@ -165,12 +166,12 @@ PY
     --tumor-task-id 135
     --tumor-model 3d_cascade_fullres
     --device "${DEVICE}"
+    --dicom-backend "${_db}"
   )
   if [[ -n "${AXIS_DCM2NIIX:-}" ]]; then
     AXIS_PREDICT_CMD+=(--dcm2niix "${AXIS_DCM2NIIX}")
-  elif ! command -v dcm2niix >/dev/null 2>&1; then
-    echo "dcm2niix not found on PATH." >&2
-    echo "Install it (e.g. conda-forge, or your cluster module) or set AXIS_DCM2NIIX to the full path to the binary." >&2
+  elif [[ "${_db}" == "dcm2niix" ]] && ! command -v dcm2niix >/dev/null 2>&1; then
+    echo "dcm2niix not on PATH and AXIS_DCM2NIIX not set; use --dicom-backend auto (default) or sitk." >&2
     return 1
   fi
   if [[ -n "${AXIS_TOTALSEG_EXTRA:-}" ]]; then

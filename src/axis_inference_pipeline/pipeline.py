@@ -13,6 +13,7 @@ from . import __version__
 from .config import DicomPaths, PipelineConfig
 from .axis_pn import run_axis_pn_inference
 from .dicom import discover_series_roots, run_dcm2niix, stage_series_for_conversion
+from .dicom_sitk import convert_staged_dicom_to_nifti
 from .mask_adaptation import adapt_masks
 from .nifti_ct import select_primary_ct_nifti, write_nnunet_compatible_nifti
 from .phase_gating import run_phase_gating
@@ -57,7 +58,7 @@ def run_pipeline(
     """
     Execute the full pipeline and write ``config.manifest_name`` under the workspace root.
 
-    Raises ``RuntimeError`` if ``dcm2niix``, TotalSegmentator, or tumor steps return non-zero
+    Raises ``RuntimeError`` if DICOM→NIfTI (``dcm2niix`` or SimpleITK), TotalSegmentator, or tumor steps fail
     when invoked (optional steps may be skipped via config).
     """
 
@@ -130,21 +131,37 @@ def run_pipeline(
             case_artifacts["dicom_staging"] = str(staging)
 
             nifti_sub.mkdir(parents=True, exist_ok=True)
-            _pipeline_log("  dcm2niix: DICOM → NIfTI…")
-            proc_dcm = run_dcm2niix(
-                staging,
-                nifti_sub,
-                binary=config.dcm2niix_binary,
-            )
-            case_artifacts["dcm2niix"] = {
-                "returncode": proc_dcm.returncode,
-                "stdout": proc_dcm.stdout[-4000:] if proc_dcm.stdout else "",
-            }
-            if proc_dcm.returncode != 0:
-                raise RuntimeError(
-                    f"dcm2niix failed for {case_id} ({proc_dcm.returncode}): "
-                    f"{proc_dcm.stderr or proc_dcm.stdout}"
+            if config.dicom_backend == "sitk":
+                _pipeline_log("  SimpleITK (GDCM): DICOM → NIfTI…")
+                out_nii = nifti_sub / "series_sitk.nii.gz"
+                try:
+                    convert_staged_dicom_to_nifti(staging, out_nii)
+                except Exception as e:
+                    raise RuntimeError(f"SimpleITK DICOM→NIfTI failed for {case_id}: {e}") from e
+                proc_dcm = subprocess.CompletedProcess(["SimpleITK"], 0, stdout="", stderr="")
+                case_artifacts["dcm2niix"] = {
+                    "returncode": 0,
+                    "stdout": "",
+                    "backend": "sitk",
+                    "output_nifti": str(out_nii),
+                }
+            else:
+                _pipeline_log("  dcm2niix: DICOM → NIfTI…")
+                proc_dcm = run_dcm2niix(
+                    staging,
+                    nifti_sub,
+                    binary=config.dcm2niix_binary,
                 )
+                case_artifacts["dcm2niix"] = {
+                    "returncode": proc_dcm.returncode,
+                    "stdout": proc_dcm.stdout[-4000:] if proc_dcm.stdout else "",
+                    "backend": "dcm2niix",
+                }
+                if proc_dcm.returncode != 0:
+                    raise RuntimeError(
+                        f"dcm2niix failed for {case_id} ({proc_dcm.returncode}): "
+                        f"{proc_dcm.stderr or proc_dcm.stdout}"
+                    )
             case_steps.append("dicom_to_nifti")
 
             primary_nifti = find_primary_nifti(nifti_sub)
@@ -312,6 +329,7 @@ def run_pipeline(
             "skip_tumor": config.skip_tumor,
             "skip_inference": config.skip_inference,
             "reuse_cached_artifacts": config.reuse_cached_artifacts,
+            "dicom_backend": config.dicom_backend,
         },
     )
     steps_completed.append("manifest")
