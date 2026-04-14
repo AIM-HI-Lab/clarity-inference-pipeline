@@ -45,6 +45,16 @@ if [[ -n "${AXIS_NNUNET_V2_RESULTS:-}" ]]; then
   export nnUNet_results="${AXIS_NNUNET_V2_RESULTS}"
 fi
 
+# nnU-Net spills large predictions to $TMPDIR; on Slurm, node-local temp avoids slow BeeGFS.
+if [[ -n "${SLURM_TMPDIR:-}" ]]; then
+  export TMPDIR="${TMPDIR:-${SLURM_TMPDIR}}"
+fi
+# Faster nnU-Net v1 KiTS inference: disable test-time augmentation unless AXIS_TUMOR_EXTRA is set
+# (including to empty, to keep default nnU-Net TTA).
+if [ -z "${AXIS_TUMOR_EXTRA+x}" ]; then
+  export AXIS_TUMOR_EXTRA="--disable_tta"
+fi
+
 REQUEST="${1:-KiTS-00000}"
 DEVICE="${AXIS_DEVICE:-$DEVICE_DEFAULT}"
 KITS_ROOT="${AXIS_KITS_ROOT:-$KITS_ROOT_DEFAULT}"
@@ -182,6 +192,9 @@ PY
   fi
   if [[ "${AXIS_REUSE_CACHED:-0}" == "1" ]]; then
     AXIS_PREDICT_CMD+=(--reuse-cached-artifacts)
+  fi
+  if [[ "${AXIS_CONTINUE_ON_EMPTY_TUMOR:-0}" == "1" ]]; then
+    AXIS_PREDICT_CMD+=(--continue-on-empty-tumor)
   fi
 
   PATH="${VENV_DIR}/bin:${PATH}" "${AXIS_PREDICT_CMD[@]}"

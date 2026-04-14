@@ -109,6 +109,7 @@ def run_pipeline(
             )
 
     processed_case_ids: list[str] = []
+    axis_pn_case_ids: list[str] = []
     n_selected = len(selected_series)
 
     for case_idx, series in enumerate(selected_series, start=1):
@@ -267,34 +268,52 @@ def run_pipeline(
         case_steps.append("mask_adaptation")
         case_artifacts["segmentation"] = str(adapted)
 
-        if not config.skip_tumor and not swp_segmentation_has_tumor_voxels(adapted):
-            raise RuntimeError(
-                "Combined segmentation has no tumor voxels (SWP label 2). "
-                "axis-pn needs a non-empty tumor mask to sample patches. "
-                f"Inspect nnU-Net output {case_paths['tumor_segmentation']} (unique labels) "
-                f"and {adapted}. "
-                "Common causes: KiTS model predicts no tumor for this scan, wrong CT series "
-                "(use a diagnostic CT, not SEG), or a bad/cached tumor run."
-            )
+        has_tumor = swp_segmentation_has_tumor_voxels(adapted)
+        axis_pn_skip: str | None = None
+        if not config.skip_tumor:
+            if not has_tumor:
+                if config.continue_on_empty_tumor:
+                    axis_pn_skip = "no_tumor_voxels_in_segmentation"
+                    case_artifacts["axis_pn_skip"] = axis_pn_skip
+                    warnings.warn(
+                        f"Case {case_id}: no SWP label 2 (tumor) after nnU-Net + mask fusion — "
+                        f"omitting from axis-pn manifest. Inspect {case_paths['tumor_segmentation']} "
+                        f"and {adapted}. Pass --continue-on-empty-tumor (already set) to allow the "
+                        "pipeline to finish; omit it to fail fast.",
+                        stacklevel=2,
+                    )
+                else:
+                    raise RuntimeError(
+                        "Combined segmentation has no tumor voxels (SWP label 2). "
+                        "axis-pn needs a non-empty tumor mask to sample patches. "
+                        f"Inspect nnU-Net output {case_paths['tumor_segmentation']} (unique labels) "
+                        f"and {adapted}. "
+                        "Common causes: KiTS model predicts no tumor for this scan, wrong CT series "
+                        "(use a diagnostic CT, not SEG), or a bad/cached tumor run. "
+                        "Re-run with --continue-on-empty-tumor to finish without axis-pn for this case."
+                    )
+            else:
+                axis_pn_case_ids.append(case_id)
 
-        write_case_metadata(
-            case_paths["metadata"],
-            {
-                "case_id": case_id,
-                "pipeline_version": __version__,
-                "source_dicom_dir": str(series.series_dir),
-                "study_instance_uid": series.study_instance_uid,
-                "series_instance_uid": series.series_instance_uid,
-                "modality": series.modality,
-                "steps_completed": case_steps,
-                "artifacts": {
-                    "imaging": str(case_paths["imaging"]),
-                    "segmentation": str(case_paths["segmentation"]),
-                    "total_seg": str(case_paths["total_seg"]),
-                    "tumor_segmentation": str(case_paths["tumor_segmentation"]),
-                },
+        case_metadata: dict[str, Any] = {
+            "case_id": case_id,
+            "pipeline_version": __version__,
+            "source_dicom_dir": str(series.series_dir),
+            "study_instance_uid": series.study_instance_uid,
+            "series_instance_uid": series.series_instance_uid,
+            "modality": series.modality,
+            "steps_completed": case_steps,
+            "artifacts": {
+                "imaging": str(case_paths["imaging"]),
+                "segmentation": str(case_paths["segmentation"]),
+                "total_seg": str(case_paths["total_seg"]),
+                "tumor_segmentation": str(case_paths["tumor_segmentation"]),
             },
-        )
+        }
+        if axis_pn_skip is not None:
+            case_metadata["axis_pn_skip"] = axis_pn_skip
+
+        write_case_metadata(case_paths["metadata"], case_metadata)
         artifacts["cases"].append(
             {
                 "case_id": case_id,
@@ -311,7 +330,10 @@ def run_pipeline(
     if not processed_case_ids:
         raise RuntimeError("No DICOM series were processed successfully.")
 
-    _pipeline_log(f"Writing SWP manifest ({len(processed_case_ids)} case(s))…")
+    _pipeline_log(
+        f"Writing SWP manifest ({len(axis_pn_case_ids)} case(s) with tumor labels for axis-pn; "
+        f"{len(processed_case_ids)} case(s) processed overall)…"
+    )
 
     steps_completed.extend(
         [
@@ -327,23 +349,31 @@ def run_pipeline(
     swp_manifest_path = layout["root"] / "swp_manifest.json"
     write_swp_manifest(
         swp_manifest_path,
-        case_ids=processed_case_ids,
+        case_ids=axis_pn_case_ids,
         data_root=layout["cases"],
     )
     steps_completed.append("swp_manifest")
     artifacts["swp_manifest"] = str(swp_manifest_path)
 
     if not config.skip_inference:
-        _pipeline_log("axis-pn inference (PN vs RN)…")
-        prediction_path = layout["predictions"] / config.inference.output_name
-        run_axis_pn_inference(
-            manifest_path=swp_manifest_path,
-            data_root=layout["cases"],
-            output_json=prediction_path,
-            config=config.inference,
-        )
-        steps_completed.append("axis_pn_inference")
-        artifacts["predictions_json"] = str(prediction_path)
+        if len(axis_pn_case_ids) == 0:
+            _pipeline_log(
+                "Skipping axis-pn inference: no case has SWP tumor label 2 "
+                "(nnU-Net produced no tumor voxels, or all such cases were skipped)."
+            )
+        else:
+            _pipeline_log("axis-pn inference (PN vs RN)…")
+            prediction_path = layout["predictions"] / config.inference.output_name
+            run_axis_pn_inference(
+                manifest_path=swp_manifest_path,
+                data_root=layout["cases"],
+                output_json=prediction_path,
+                config=config.inference,
+            )
+            steps_completed.append("axis_pn_inference")
+            artifacts["predictions_json"] = str(prediction_path)
+
+    artifacts["axis_pn_case_ids"] = axis_pn_case_ids
 
     manifest_path = layout["root"] / config.manifest_name
     write_manifest(
@@ -355,11 +385,13 @@ def run_pipeline(
             "workspace_root": str(config.workspace_root),
             "dicom_input": str(config.dicom.input_dir),
             "case_ids": processed_case_ids,
+            "axis_pn_case_ids": axis_pn_case_ids,
             "series_instance_uid": series_instance_uid,
             "phase_gating_enabled": config.phase_gating.enabled,
             "skip_tumor": config.skip_tumor,
             "skip_inference": config.skip_inference,
             "reuse_cached_artifacts": config.reuse_cached_artifacts,
+            "continue_on_empty_tumor": config.continue_on_empty_tumor,
             "dicom_backend": config.dicom_backend,
         },
     )

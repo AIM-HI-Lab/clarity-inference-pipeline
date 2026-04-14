@@ -22,8 +22,10 @@
 #
 # Optional overrides (export before sbatch or pass via --export):
 #   TMPDIR — nnU-Net may spill large predictions to disk ("output too large for process-process
-#            communication"); on slow BeeGFS/NFS this can take many minutes. Point to fast local
-#            scratch, e.g.: export TMPDIR=/tmp/$USER/axis-tmp && mkdir -p "$TMPDIR"
+#            communication"); on slow BeeGFS/NFS this can take many minutes. run_local_kits.sh sets
+#            TMPDIR from SLURM_TMPDIR when present; or: export TMPDIR=/tmp/$USER/axis-tmp
+#   AXIS_TUMOR_EXTRA — default is --disable_tta (faster nnU-Net v1). Set explicitly to add flags.
+#   AXIS_CONTINUE_ON_EMPTY_TUMOR=1 — pass --continue-on-empty-tumor when KiTS nnU-Net has no tumor voxels.
 #   AXIS_REPO_ROOT   — absolute path to repo root if this .job file is not under dev/ in the clone
 #   AXIS_VENV_DIR    — path to venv if not <repo>/.venv (must contain bin/axis-pn)
 #   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
