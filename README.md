@@ -284,6 +284,8 @@ sbatch dev/slurm_gpu_kits.job
 
 **Run `nvidia-smi` on a GPU node** before setup if login nodes have no GPU — `auto` uses the reported “CUDA Version” line. If that line is missing or wrong, set **`AXIS_PYTORCH_CUDA`** explicitly.
 
+**nnU-Net / TotalSegmentator “CUDA is not available”:** Both use the **same PyTorch** as the rest of the venv. If `torch.cuda.is_available()` is false, nnU-Net falls back to CPU (those `GradScaler` / `autocast` messages). Fix PyTorch + driver as above, and ensure the Slurm job actually has a GPU (**`#SBATCH --gres=gpu:1`**, and **`echo $CUDA_VISIBLE_DEVICES`** in the job should be non-empty). Optional: **`AXIS_DEBUG_CUDA=1`** in `dev/slurm_gpu_kits.job` runs a quick `nvidia-smi` + torch check before the pipeline.
+
 ### Parity with Docker (same software path)
 
 | Piece | Docker (CPU image) | Cluster (this repo) |

@@ -33,6 +33,11 @@ def run_totalsegmentator(
     output_dir.mkdir(parents=True, exist_ok=True)
     binary = resolve_totalsegmentator_binary(config)
     cmd: list[str] = [binary, "-i", str(input_image), "-o", str(output_dir)]
+    if config.device:
+        # TotalSegmentator: --device gpu|cpu|mps (we map cuda → gpu).
+        ts_dev = "gpu" if config.device == "cuda" else config.device
+        if ts_dev in ("gpu", "cpu", "mps"):
+            cmd.extend(["--device", ts_dev])
     if config.task:
         cmd.extend(["--task", config.task])
     cmd.extend(list(config.extra_args))

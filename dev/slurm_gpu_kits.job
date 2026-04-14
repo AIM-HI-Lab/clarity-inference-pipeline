@@ -76,6 +76,12 @@ export NUMEXPR_NUM_THREADS="${CPUS}"
 export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms}"
 export AXIS_DEVICE="${AXIS_DEVICE:-cuda}"
 
+# Set AXIS_DEBUG_CUDA=1 to print nvidia-smi + torch.cuda.is_available() before the pipeline (Slurm must assign a GPU, e.g. #SBATCH --gres=gpu:1).
+if [[ "${AXIS_DEBUG_CUDA:-0}" == "1" ]]; then
+  nvidia-smi || true
+  "${VENV_DIR}/bin/python" -c "import torch; print('torch.cuda.is_available():', torch.cuda.is_available(), 'cuda:', getattr(torch.version, 'cuda', None))" || true
+fi
+
 if [[ ! -x "${AXIS_PN}" ]]; then
   echo "Cannot run axis-pn at: ${AXIS_PN}" >&2
   echo "  REPO_ROOT=${REPO_ROOT}" >&2

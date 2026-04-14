@@ -212,7 +212,12 @@ def predict(
     )
     totalseg_extra_args = resolve_totalsegmentator_extra_args(cli_extra=totalseg_extra)
     tumor_extra_args = resolve_tumor_extra_args(cli_extra=tumor_extra)
-    ts_cfg = TotalSegmentatorConfig(binary=totalseg_binary, task=totalseg_task, extra_args=totalseg_extra_args)
+    ts_cfg = TotalSegmentatorConfig(
+        binary=totalseg_binary,
+        task=totalseg_task,
+        extra_args=totalseg_extra_args,
+        device=device,
+    )
     tumor_cfg = TumorSegmentationConfig(
         binary=tumor_binary,
         mode=tumor_mode,

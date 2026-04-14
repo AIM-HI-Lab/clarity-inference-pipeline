@@ -50,6 +50,26 @@ def _cached_step_ok() -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(["cached"], 0, stdout="", stderr="")
 
 
+def _warn_if_cuda_requested_but_unavailable(device: str | None) -> None:
+    """nnU-Net and TotalSegmentator use the same PyTorch; if CUDA is missing, both fall back to CPU."""
+
+    if device != "cuda":
+        return
+    try:
+        import torch
+    except ImportError:
+        return
+    if torch.cuda.is_available():
+        return
+    _pipeline_log(
+        "WARNING: --device cuda but torch.cuda.is_available() is False. "
+        "TotalSegmentator and nnU-Net will run on CPU (slow). "
+        "Fix: request a GPU in your job (Slurm: #SBATCH --gres=gpu:1; check echo $CUDA_VISIBLE_DEVICES); "
+        "install a PyTorch wheel that matches the node driver (AXIS_PYTORCH_CUDA in dev/setup_local_models.sh, e.g. cu118); "
+        "in the job run: nvidia-smi && python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"."
+    )
+
+
 def run_pipeline(
     config: PipelineConfig,
     *,
@@ -64,6 +84,7 @@ def run_pipeline(
 
     layout = default_workspace_layout(config.workspace_root)
     ensure_workspace_dirs(layout)
+    _warn_if_cuda_requested_but_unavailable(config.inference.device)
 
     steps_completed: list[str] = []
     artifacts: dict[str, Any] = {"cases": []}

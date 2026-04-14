@@ -27,6 +27,9 @@ class TotalSegmentatorConfig:
     task: str | None = None
     """If set, passed as ``--task`` (library-specific; adjust for your install)."""
 
+    device: str | None = None
+    """If set, passed as ``--device`` (``gpu`` / ``cpu``); aligns with pipeline ``--device`` cuda/cpu."""
+
 
 @dataclass(frozen=True)
 class TumorSegmentationConfig:
