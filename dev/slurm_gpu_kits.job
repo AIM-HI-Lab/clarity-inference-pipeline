@@ -73,7 +73,7 @@ export NUMEXPR_NUM_THREADS="${CPUS}"
 
 if [[ -z "${AXIS_KITS_ROOT:-}" ]]; then
   echo "AXIS_KITS_ROOT is required (parent of KiTS-XXXXX directories)." >&2
-  echo "Example: sbatch --export=ALL,AXIS_KITS_ROOT=/path/to/c4kc_kits,CASE_NAME=KiTS-00023 dev/slurm_gpu_kits.job" >&2
+  echo "Example: sbatch --export=ALL,AXIS_KITS_ROOT=/path/to/c4kc_kits,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job" >&2
   exit 1
 fi
 if [[ ! -d "${AXIS_KITS_ROOT}" ]]; then
