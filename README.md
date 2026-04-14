@@ -297,7 +297,11 @@ It runs **`dev/check_gpu_env.sh`** on a compute node and prints **`CUDA_VISIBLE_
 **Still no GPU after that?**
 
 1. **Empty `CUDA_VISIBLE_DEVICES`** — Slurm did not assign a GPU. Fix partition / **`#SBATCH`** (try **`--gpus-per-node=1`**, **`--gpus-per-task=1`**, or your center’s GPU flags). Ask admins which partition and flags attach GPUs.
-2. **`torch.version.cuda` is `None`** — CPU-only PyTorch. Reinstall: **`.venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118`**, or **`AXIS_PYTORCH_CUDA=cu118 ./dev/setup_local_models.sh`**.
+2. **`torch.version.cuda` is `None`** or **`torch.__version__` ends with `+cpu`** — CPU-only PyTorch (the GPU is fine). Reinstall CUDA wheels from the repo root, e.g. **`cu124`** if your driver reports CUDA 12.x (`nvidia-smi`):
+   ```bash
+   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu124
+   ```
+   Or **`cu118`** on older drivers. Then **`AXIS_PYTORCH_CUDA=cu124 ./dev/setup_local_models.sh`** on the next fresh venv so `pip install -e .` does not leave you on `+cpu` again without the second install step.
 3. **CUDA build but `is_available()` False** — Often **driver vs wheel** (try **`cu118`**) or missing system libraries. Many clusters need **`module load cuda`** (and sometimes **`cudnn`**) *before* Python runs; add those lines **inside** your Slurm script (after **`cd`**, before **`axis-pn`**), using your site’s module names.
 4. **Login-node setup** — If **`nvidia-smi`** was missing during setup, **`auto`** now defaults **Linux → `cu118`** so you are less likely to get CPU-only torch by accident.
 

@@ -40,8 +40,13 @@ print("torch.version.cuda (build):", torch.version.cuda)
 print("torch.cuda.is_available():", torch.cuda.is_available())
 if torch.version.cuda is None:
     print()
-    print("This torch is CPU-only (no CUDA build). Reinstall:")
-    print('  .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118')
+    print(">>> This PyTorch is CPU-only (e.g. version shows '+cpu'). GPU and Slurm assignment are OK;")
+    print(">>> only the wheel is wrong — often from `pip install -e .` without the CUDA reinstall step.")
+    print(">>> Fix from repo root (pick one index that matches your driver; CUDA 12.x drivers: try cu124):")
+    print(">>>   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu124")
+    print(">>> Fallback (older drivers):")
+    print(">>>   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118")
+    print(">>> Then: sbatch dev/slurm_check_gpu.job  (or your pipeline) again.")
     raise SystemExit(0)
 
 if torch.cuda.is_available():
