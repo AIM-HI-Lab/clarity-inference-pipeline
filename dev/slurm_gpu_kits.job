@@ -17,16 +17,15 @@
 # Or: sbatch --chdir=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job  (Slurm 20.11+)
 # Or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job
 #
-# Pick data + case (both required):
-#   sbatch --export=ALL,AXIS_KITS_ROOT=/path/to/c4kc_kits,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job
+# Process one case, or all KiTS-* folders under AXIS_KITS_ROOT (default: ALL):
+#   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job
+#   sbatch dev/slurm_gpu_kits.job   # CASE_NAME defaults to ALL
 #
-# Required (export on sbatch):
-#   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (e.g. .../kits-dicoms/c4kc_kits)
-# Optional overrides:
+# Optional overrides (export before sbatch or pass via --export):
 #   AXIS_REPO_ROOT   — absolute path to repo root if this .job file is not under dev/ in the clone
 #   AXIS_VENV_DIR    — path to venv if not <repo>/.venv (must contain bin/axis-pn)
 #   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
-#   CASE_NAME        — default KiTS-00000; must exist under AXIS_KITS_ROOT
+#   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
 #   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
 #   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
 #
@@ -35,7 +34,7 @@
 #
 set -euo pipefail
 
-CASE_NAME="${CASE_NAME:-KiTS-00000}"
+CASE_NAME="${CASE_NAME:-ALL}"
 
 # Slurm executes a *copy* of this script under a spool dir (e.g. .../slurm/var/spool/...), so
 # $BASH_SOURCE/../.. is NOT the git repo. Prefer SLURM_SUBMIT_DIR (cwd when sbatch ran) or AXIS_REPO_ROOT.
@@ -71,17 +70,8 @@ export MKL_NUM_THREADS="${CPUS}"
 export OPENBLAS_NUM_THREADS="${CPUS}"
 export NUMEXPR_NUM_THREADS="${CPUS}"
 
-if [[ -z "${AXIS_KITS_ROOT:-}" ]]; then
-  echo "AXIS_KITS_ROOT is required (parent of KiTS-XXXXX directories)." >&2
-  echo "Example: sbatch --export=ALL,AXIS_KITS_ROOT=/path/to/c4kc_kits,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job" >&2
-  exit 1
-fi
-if [[ ! -d "${AXIS_KITS_ROOT}" ]]; then
-  echo "AXIS_KITS_ROOT is not a directory: ${AXIS_KITS_ROOT}" >&2
-  exit 1
-fi
-export AXIS_KITS_ROOT
-
+# AIM-HI Lab layout: .../kits-dicoms/c4kc_kits/KiTS-XXXXX
+export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits}"
 export AXIS_DEVICE="${AXIS_DEVICE:-cuda}"
 
 if [[ ! -x "${AXIS_PN}" ]]; then
