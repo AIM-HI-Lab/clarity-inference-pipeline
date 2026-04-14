@@ -54,7 +54,14 @@ RUN_NAME="${AXIS_RUN_NAME:-${CASE_NAME}}"
 WORK_DIR="${WORK_ROOT}/${RUN_NAME}"
 
 if [[ ! -d "${KITS_ROOT}/${CASE_NAME}" ]]; then
-  echo "Case directory not found: ${KITS_ROOT}/${CASE_NAME}"
+  echo "Case directory not found: ${KITS_ROOT}/${CASE_NAME}" >&2
+  echo "Set AXIS_KITS_ROOT to the parent of the KiTS-XXXXX folders and pick a case that exists (arg or CASE_NAME)." >&2
+  if [[ -d "${KITS_ROOT}" ]]; then
+    echo "Sample of directories under ${KITS_ROOT}:" >&2
+    ls -1 "${KITS_ROOT}" 2>/dev/null | head -30 >&2
+  elif [[ ! -d "${KITS_ROOT}" ]]; then
+    echo "AXIS_KITS_ROOT / KITS_ROOT is not a directory: ${KITS_ROOT}" >&2
+  fi
   exit 1
 fi
 

@@ -241,16 +241,15 @@ The batch file requests **1 node**, **96 CPUs**, **2.0 TB RAM**, partition **`
 ```bash
 cd /path/to/axis-inference-pipeline
 chmod +x dev/slurm_xtreme_kits_cpu.job
-# Optional: export AXIS_KITS_ROOT=/your/path/c4kc_kits
-# Optional: export AXIS_WEIGHTS_DIR=/your/path/pnvrn_folds
-# Optional: export AXIS_WORK_ROOT=/your/scratch/axis-runs
-sbatch dev/slurm_xtreme_kits_cpu.job
+# Required: AXIS_KITS_ROOT = parent of KiTS-XXXXX folders on this filesystem.
+# Optional: AXIS_WEIGHTS_DIR, AXIS_WORK_ROOT
+sbatch --export=ALL,AXIS_KITS_ROOT=/your/path/c4kc_kits dev/slurm_xtreme_kits_cpu.job
 ```
 
-Run a specific case (default in the script is `KiTS-00000`):
+Run a specific case (`CASE_NAME` defaults to `KiTS-00000` if omitted; that folder must exist):
 
 ```bash
-sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
+sbatch --export=ALL,AXIS_KITS_ROOT=/your/path/c4kc_kits,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
 ```
 
 Logs: `axis-kits-cpu-<jobid>.out` / `.err` in the submission directory.
@@ -263,7 +262,7 @@ Logs: `axis-kits-cpu-<jobid>.out` / `.err` in the submission directory.
 
 ```bash
 chmod +x dev/slurm_gpu_kits.job
-sbatch dev/slurm_gpu_kits.job
+sbatch --export=ALL,AXIS_KITS_ROOT=/your/path/c4kc_kits,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job
 ```
 
 **Do you need a separate venv?** **No** — use the **same** `.venv` from `./dev/setup_local_models.sh` as for CPU. You still need **`axis-pn`** and deps installed there. For **`--device cuda`**, the PyTorch inside that venv must be **CUDA-enabled** (many default `pip install torch` wheels on clusters are CPU-only). After the normal setup, install a CUDA build that matches your node’s driver/CUDA stack, e.g. follow [PyTorch’s install selector](https://pytorch.org/get-started/locally/), or use a cluster module for PyTorch and point `AXIS_PYTHON` at that environment if your admins recommend it.
