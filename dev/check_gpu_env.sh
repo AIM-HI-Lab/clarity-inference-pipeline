@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-
-#!/usr/bin/env bash
-#SBATCH --job-name=axis-kits-gpu
+#SBATCH --job-name=axis-check-gpu
 #SBATCH --partition=gpu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=12
