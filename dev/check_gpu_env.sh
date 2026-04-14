@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+
+#!/usr/bin/env bash
+#SBATCH --job-name=axis-kits-gpu
+#SBATCH --partition=gpu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=90000
+#SBATCH --gres=gpu:1
+
 # Quick check: GPU driver visibility + whether this venv's PyTorch sees CUDA.
 # Run on a GPU compute node (or interactive GPU session), same as your jobs.
 #
