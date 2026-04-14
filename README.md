@@ -187,7 +187,7 @@ bash dev/run_local_kits.sh KiTS-00000
 Run **every** `KiTS-*` directory under your KiTS root (sorted): pass `ALL` (or `--all` / `-a`):
 
 ```bash
-AXIS_KITS_ROOT=/path/to/c4kc_kits bash dev/run_local_kits.sh ALL
+AXIS_KITS_ROOT=/path/to/kits-dicoms bash dev/run_local_kits.sh ALL
 ```
 
 By default that script uses:
@@ -201,7 +201,7 @@ By default that script uses:
 You can override them with:
 
 ```bash
-AXIS_DEVICE=cuda AXIS_KITS_ROOT=/path/to/c4kc_kits bash dev/run_local_kits.sh KiTS-00000
+AXIS_DEVICE=cuda AXIS_KITS_ROOT=/path/to/kits-dicoms bash dev/run_local_kits.sh KiTS-00000
 ```
 
 ## Cluster dry run (Slurm, CPU, no Docker)
@@ -213,14 +213,14 @@ This is the path for **validating the pipeline on a shared HPC node** when you c
 Point `AXIS_KITS_ROOT` at the directory that **directly contains** one folder per case:
 
 ```text
-/path/to/kits-dicoms/c4kc_kits/
+/path/to/kits-dicoms/
   KiTS-00000/
     ... nested DICOM series folders ...
   KiTS-00001/
   ...
 ```
 
-Example used for AIM-HI Lab storage: `/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits`. Each `KiTS-XXXXX` directory should contain the usual nested DICOM tree (the helper picks a diagnostic **CT** series and skips **SEG**).
+Example used for AIM-HI Lab storage: `/home/jonnalr/AIM-HI-Lab/kits-dicoms`. Each `KiTS-XXXXX` directory should contain the usual nested DICOM tree (the helper picks a diagnostic **CT** series and skips **SEG**). If your tree has an extra level (e.g. `c4kc_kits/KiTS-XXXXX`), set `AXIS_KITS_ROOT` to that parent instead.
 
 ### One-time setup on the cluster
 
@@ -247,7 +247,7 @@ The batch file requests **1 node**, **96 CPUs**, **2.0 TB RAM**, partition **`
 ```bash
 cd /path/to/axis-inference-pipeline
 chmod +x dev/slurm_xtreme_kits_cpu.job
-# Optional: export AXIS_KITS_ROOT=/your/path/c4kc_kits
+# Optional: export AXIS_KITS_ROOT=/your/path/kits-dicoms
 # Optional: export AXIS_WEIGHTS_DIR=/your/path/pnvrn_folds
 # Optional: export AXIS_WORK_ROOT=/your/scratch/axis-runs
 sbatch dev/slurm_xtreme_kits_cpu.job

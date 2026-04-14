@@ -70,8 +70,8 @@ export MKL_NUM_THREADS="${CPUS}"
 export OPENBLAS_NUM_THREADS="${CPUS}"
 export NUMEXPR_NUM_THREADS="${CPUS}"
 
-# AIM-HI Lab layout: .../kits-dicoms/c4kc_kits/KiTS-XXXXX
-export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits}"
+# AIM-HI Lab layout: .../kits-dicoms/KiTS-XXXXX (each case is a direct child of AXIS_KITS_ROOT)
+export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms}"
 export AXIS_DEVICE="${AXIS_DEVICE:-cuda}"
 
 if [[ ! -x "${AXIS_PN}" ]]; then
