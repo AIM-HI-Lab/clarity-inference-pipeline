@@ -11,9 +11,11 @@
 # KiTS dry run on GPU: same flow as dev/run_local_kits.sh with AXIS_DEVICE=cuda.
 # --mem is in megabytes on typical Slurm sites (90000 ≈ 88 GiB).
 #
-# Submit (example):
-#   cd /path/to/axis-inference-pipeline
-#   sbatch dev/slurm_gpu_kits.job
+# Submit (example) — run from INSIDE the repo so SLURM_SUBMIT_DIR is the clone.
+# (Slurm copies this script to a spool path; do not rely on the script file location.)
+#   cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job
+# Or: sbatch --chdir=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job  (Slurm 20.11+)
+# Or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job
 #
 # Pick a case:
 #   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job
@@ -33,13 +35,28 @@ set -euo pipefail
 
 CASE_NAME="${CASE_NAME:-KiTS-00000}"
 
+# Slurm executes a *copy* of this script under a spool dir (e.g. .../slurm/var/spool/...), so
+# $BASH_SOURCE/../.. is NOT the git repo. Prefer SLURM_SUBMIT_DIR (cwd when sbatch ran) or AXIS_REPO_ROOT.
 if [[ -n "${AXIS_REPO_ROOT:-}" ]]; then
   REPO_ROOT="$(cd "${AXIS_REPO_ROOT}" && pwd)" || {
     echo "AXIS_REPO_ROOT is not a directory: ${AXIS_REPO_ROOT}" >&2
     exit 1
   }
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/dev/run_local_kits.sh" ]]; then
+  REPO_ROOT="$(cd "${SLURM_SUBMIT_DIR}" && pwd)"
 else
-  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  _FROM_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  if [[ -f "${_FROM_SCRIPT}/dev/run_local_kits.sh" ]]; then
+    REPO_ROOT="${_FROM_SCRIPT}"
+  else
+    echo "Could not find axis-inference-pipeline repo root." >&2
+    echo "Slurm runs this script from a spool directory; \$BASH_SOURCE points at ${BASH_SOURCE[0]}" >&2
+    echo "Fix: submit from the clone so SLURM_SUBMIT_DIR is set correctly:" >&2
+    echo "  cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job" >&2
+    echo "Or pass the repo explicitly:" >&2
+    echo "  sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job" >&2
+    exit 1
+  fi
 fi
 cd "${REPO_ROOT}" || exit 1
 
@@ -64,9 +81,9 @@ if [[ ! -x "${AXIS_PN}" ]]; then
   echo "  1) On a login/build node, create the venv in this clone:" >&2
   echo "       cd ${REPO_ROOT} && ./dev/setup_local_models.sh" >&2
   echo "  2) If your venv lives elsewhere: export AXIS_VENV_DIR=/path/to/venv before sbatch" >&2
-  echo "  3) If sbatch used a copied job script, set the repo root:" >&2
-  echo "       sbatch --export=ALL,AXIS_REPO_ROOT=${REPO_ROOT} dev/slurm_gpu_kits.job" >&2
-  echo "     (or run sbatch from inside the repo so the script path is correct.)" >&2
+  echo "  3) If REPO_ROOT looks like a Slurm spool path, submit from the clone:" >&2
+  echo "       cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job" >&2
+  echo "     or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job" >&2
   echo "For GPU, ensure PyTorch in that venv is CUDA-enabled (see README cluster GPU note)." >&2
   exit 1
 fi

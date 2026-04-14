@@ -8,9 +8,9 @@
 #
 # KiTS dry run on CPU (same flow as dev/run_local_kits.sh / Docker CPU predict).
 #
-# Submit (example):
-#   cd /path/to/axis-inference-pipeline
-#   sbatch dev/slurm_xtreme_kits_cpu.job
+# Submit (example) — run from INSIDE the repo (Slurm copies this script to spool; see slurm_gpu_kits.job).
+#   cd /path/to/axis-inference-pipeline && sbatch dev/slurm_xtreme_kits_cpu.job
+# Or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_xtreme_kits_cpu.job
 #
 # Pick a case:
 #   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
@@ -28,13 +28,25 @@ set -euo pipefail
 
 CASE_NAME="${CASE_NAME:-KiTS-00000}"
 
+# Slurm runs a spool *copy* of this script; $BASH_SOURCE/../.. is not the repo. Prefer SLURM_SUBMIT_DIR.
 if [[ -n "${AXIS_REPO_ROOT:-}" ]]; then
   REPO_ROOT="$(cd "${AXIS_REPO_ROOT}" && pwd)" || {
     echo "AXIS_REPO_ROOT is not a directory: ${AXIS_REPO_ROOT}" >&2
     exit 1
   }
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/dev/run_local_kits.sh" ]]; then
+  REPO_ROOT="$(cd "${SLURM_SUBMIT_DIR}" && pwd)"
 else
-  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  _FROM_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  if [[ -f "${_FROM_SCRIPT}/dev/run_local_kits.sh" ]]; then
+    REPO_ROOT="${_FROM_SCRIPT}"
+  else
+    echo "Could not find axis-inference-pipeline repo root." >&2
+    echo "Slurm runs this script from a spool directory; \$BASH_SOURCE points at ${BASH_SOURCE[0]}" >&2
+    echo "Fix: cd /path/to/axis-inference-pipeline && sbatch dev/slurm_xtreme_kits_cpu.job" >&2
+    echo "Or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_xtreme_kits_cpu.job" >&2
+    exit 1
+  fi
 fi
 cd "${REPO_ROOT}" || exit 1
 
@@ -58,9 +70,9 @@ if [[ ! -x "${AXIS_PN}" ]]; then
   echo "  1) On a login/build node, create the venv in this clone:" >&2
   echo "       cd ${REPO_ROOT} && ./dev/setup_local_models.sh" >&2
   echo "  2) If your venv lives elsewhere: export AXIS_VENV_DIR=/path/to/venv before sbatch" >&2
-  echo "  3) If sbatch used a copied job script, set the repo root:" >&2
-  echo "       sbatch --export=ALL,AXIS_REPO_ROOT=${REPO_ROOT} dev/slurm_xtreme_kits_cpu.job" >&2
-  echo "     (or run sbatch from inside the repo so the script path is correct.)" >&2
+  echo "  3) If REPO_ROOT looks like a Slurm spool path, submit from the clone:" >&2
+  echo "       cd /path/to/axis-inference-pipeline && sbatch dev/slurm_xtreme_kits_cpu.job" >&2
+  echo "     or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_xtreme_kits_cpu.job" >&2
   exit 1
 fi
 
