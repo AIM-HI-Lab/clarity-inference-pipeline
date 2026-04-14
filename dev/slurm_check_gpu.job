@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=axis-check-gpu
+#SBATCH --partition=gpu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=8000
+#SBATCH --gres=gpu:1
+#SBATCH --output=axis-check-gpu-%j.out
+#SBATCH --error=axis-check-gpu-%j.err
+#
+# Diagnostics only — for clusters where you can only reach GPUs via Slurm.
+# Submit from inside the repo (same rules as slurm_gpu_kits.job):
+#   cd /path/to/axis-inference-pipeline && sbatch dev/slurm_check_gpu.job
+# Or:
+#   sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_check_gpu.job
+#
+# Edit #SBATCH lines if your site uses e.g. --gpus-per-node=1 instead of --gres=gpu:1.
+#
+set -euo pipefail
+
+if [[ -n "${AXIS_REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd "${AXIS_REPO_ROOT}" && pwd)" || {
+    echo "AXIS_REPO_ROOT is not a directory: ${AXIS_REPO_ROOT}" >&2
+    exit 1
+  }
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/dev/run_local_kits.sh" ]]; then
+  REPO_ROOT="$(cd "${SLURM_SUBMIT_DIR}" && pwd)"
+else
+  _FROM_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  if [[ -f "${_FROM_SCRIPT}/dev/run_local_kits.sh" ]]; then
+    REPO_ROOT="${_FROM_SCRIPT}"
+  else
+    echo "Could not find repo root. cd into the clone and: sbatch dev/slurm_check_gpu.job" >&2
+    echo "Or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_check_gpu.job" >&2
+    exit 1
+  fi
+fi
+cd "${REPO_ROOT}" || exit 1
+
+echo "REPO_ROOT=${REPO_ROOT}"
+echo
+exec bash "${REPO_ROOT}/dev/check_gpu_env.sh"

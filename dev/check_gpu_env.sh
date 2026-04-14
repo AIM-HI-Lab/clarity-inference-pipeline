@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=axis-check-gpu
-#SBATCH --partition=gpu
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=12
-#SBATCH --mem=90000
-#SBATCH --gres=gpu:1
-
-# Quick check: GPU driver visibility + whether this venv's PyTorch sees CUDA.
-# Run on a GPU compute node (or interactive GPU session), same as your jobs.
+# GPU driver + PyTorch CUDA visibility (run on a GPU node or inside a Slurm GPU job).
 #
-#   cd /path/to/axis-inference-pipeline
 #   ./dev/check_gpu_env.sh
+#
+# For Slurm-only access, submit: sbatch dev/slurm_check_gpu.job
 #
 set -euo pipefail
 
@@ -21,8 +14,11 @@ if [[ ! -x "${PY}" ]]; then
   exit 1
 fi
 
-echo "== CUDA_VISIBLE_DEVICES =="
-echo "${CUDA_VISIBLE_DEVICES-<unset>}"
+echo "== Slurm / GPU assignment =="
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES-<unset>}"
+echo "SLURM_JOB_GPUS=${SLURM_JOB_GPUS-<unset>}"
+echo "SLURM_STEP_GPUS=${SLURM_STEP_GPUS-<unset>}"
+echo "SLURM_GPUS_ON_NODE=${SLURM_GPUS_ON_NODE-<unset>}"
 
 echo
 echo "== nvidia-smi (if present) =="
@@ -35,20 +31,44 @@ fi
 echo
 echo "== PyTorch in .venv =="
 "${PY}" - <<'PY'
+import os
 import torch
 
 print("torch.__file__:", torch.__file__)
 print("torch.__version__:", torch.__version__)
 print("torch.version.cuda (build):", torch.version.cuda)
 print("torch.cuda.is_available():", torch.cuda.is_available())
+if torch.version.cuda is None:
+    print()
+    print("This torch is CPU-only (no CUDA build). Reinstall:")
+    print('  .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118')
+    raise SystemExit(0)
+
 if torch.cuda.is_available():
     print("device 0:", torch.cuda.get_device_name(0))
+    try:
+        t = torch.tensor([1.0], device="cuda")
+        print("cuda tensor smoke test: OK", t)
+    except Exception as e:
+        print("cuda tensor smoke test FAILED:", e)
 else:
     print()
-    print("CUDA not available. Common causes:")
-    print("  • This shell is not on a GPU node / Slurm job has no GPU (--gres=gpu:1).")
-    print("  • PyTorch is CPU-only: reinstall CUDA wheel, e.g.")
-    print('    AXIS_PYTORCH_CUDA=cu118 .venv/bin/pip install -U torch torchvision \\')
-    print('      --index-url https://download.pytorch.org/whl/cu118')
-    print("  • Driver too new/too old for this torch build: try cu118, or match pytorch.org.")
+    print("CUDA build present but torch.cuda.is_available() is False. Common causes:")
+    print("  • Job has no GPU: CUDA_VISIBLE_DEVICES empty → fix #SBATCH (--gres=gpu:1 vs --gpus-per-node=1).")
+    print("  • Driver/library mismatch: try cu118 wheel; or module load cuda on your cluster.")
+    print("  • Wrong node type: partition may not attach GPUs.")
 PY
+
+TORCH_LIB="$("${PY}" -c "
+import pathlib
+import torch
+p = pathlib.Path(torch.__file__).resolve().parent / 'lib' / 'libtorch_cuda.so'
+print(p if p.is_file() else '')
+" 2>/dev/null || true)"
+if [[ -n "${TORCH_LIB}" && -f "${TORCH_LIB}" ]]; then
+  echo
+  echo "== Missing shared libs for libtorch_cuda.so (if any) =="
+  if command -v ldd >/dev/null 2>&1; then
+    ldd "${TORCH_LIB}" 2>/dev/null | grep -i "not found" || echo "(none reported by ldd)"
+  fi
+fi

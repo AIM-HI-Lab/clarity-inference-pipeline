@@ -282,21 +282,26 @@ sbatch dev/slurm_gpu_kits.job
 
 **Do you need a separate venv?** **No** — use the same `.venv` from `./dev/setup_local_models.sh`. GPU jobs need a **CUDA** PyTorch build that fits the **driver** on the compute nodes; `setup_local_models.sh` handles that via **`AXIS_PYTORCH_CUDA`** (see above). If you see **`The NVIDIA driver on your system is too old`** from TotalSegmentator or nnU-Net, reinstall with **`AXIS_PYTORCH_CUDA=cu118`** (or run the `pip install …/whl/cu118` one-liner above).
 
-**Still no GPU (`torch.cuda.is_available()` false)?** Run **`./dev/check_gpu_env.sh`** on a **GPU compute node** (or an interactive GPU session), not only on a login node.
+**Slurm-only access (no interactive GPU):** Submit a **diagnostics-only** job — same GPU request as real work:
 
-1. **Slurm must expose a GPU** — `#SBATCH --gres=gpu:1` (or your site’s flag). In the job, `echo $CUDA_VISIBLE_DEVICES` should not be empty.
-2. **PyTorch must be a CUDA wheel** — If setup ran on a **login node without `nvidia-smi`**, older `auto` logic installed **CPU-only** torch. Current `setup_local_models.sh` defaults **Linux + no `nvidia-smi` → `cu118`**. If your venv still has CPU torch, **reinstall CUDA PyTorch** (no need to delete the whole venv):
-   ```bash
-   cd /path/to/axis-inference-pipeline
-   AXIS_PYTORCH_CUDA=cu118 ./dev/setup_local_models.sh
-   ```
-   Or only torch:
-   ```bash
-   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118
-   ```
-   Then run **`./dev/check_gpu_env.sh`** again until `torch.cuda.is_available(): True`.
+```bash
+cd /path/to/axis-inference-pipeline
+sbatch dev/slurm_check_gpu.job
+# read axis-check-gpu-<jobid>.out
+```
 
-**nnU-Net / TotalSegmentator “CUDA is not available”:** Same PyTorch as everything else. Optional: **`AXIS_DEBUG_CUDA=1`** with `dev/slurm_gpu_kits.job` prints `nvidia-smi` + a torch check before the pipeline.
+It runs **`dev/check_gpu_env.sh`** on a compute node and prints **`CUDA_VISIBLE_DEVICES`**, **`nvidia-smi`**, **`torch.version.cuda`** (CPU-only vs CUDA build), **`torch.cuda.is_available()`**, a **CUDA tensor smoke test**, and **`ldd`** lines if a library is missing. Edit **`#SBATCH`** in that file if your site uses e.g. **`--gpus-per-node=1`** instead of **`--gres=gpu:1`**, or a different **`--partition`**.
+
+**`dev/slurm_gpu_kits.job`** runs the same check **before** the pipeline by default (**`AXIS_DEBUG_CUDA`** defaults to **1**; set **`AXIS_DEBUG_CUDA=0`** to skip). Check **`axis-kits-gpu-*.out`** for the block between the `====` lines.
+
+**Still no GPU after that?**
+
+1. **Empty `CUDA_VISIBLE_DEVICES`** — Slurm did not assign a GPU. Fix partition / **`#SBATCH`** (try **`--gpus-per-node=1`**, **`--gpus-per-task=1`**, or your center’s GPU flags). Ask admins which partition and flags attach GPUs.
+2. **`torch.version.cuda` is `None`** — CPU-only PyTorch. Reinstall: **`.venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118`**, or **`AXIS_PYTORCH_CUDA=cu118 ./dev/setup_local_models.sh`**.
+3. **CUDA build but `is_available()` False** — Often **driver vs wheel** (try **`cu118`**) or missing system libraries. Many clusters need **`module load cuda`** (and sometimes **`cudnn`**) *before* Python runs; add those lines **inside** your Slurm script (after **`cd`**, before **`axis-pn`**), using your site’s module names.
+4. **Login-node setup** — If **`nvidia-smi`** was missing during setup, **`auto`** now defaults **Linux → `cu118`** so you are less likely to get CPU-only torch by accident.
+
+**nnU-Net / TotalSegmentator “CUDA is not available”:** Same PyTorch as the rest of the venv; fix the checks above first.
 
 ### Parity with Docker (same software path)
 
