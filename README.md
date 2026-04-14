@@ -232,6 +232,8 @@ That creates `.venv`, installs dependencies, downloads TotalSegmentator **total*
 
 Copy or link **PNvsRN weights** (`pnvrn_folds/`-style tree, 25× `.pth`) somewhere readable on the cluster and set `AXIS_WEIGHTS_DIR` if it is not `<repo>/pnvrn_folds`.
 
+**Slurm says it cannot find `axis-pn` / `.venv`:** The batch scripts locate the repo from the **job file path** (`dev/slurm_*.job` → parent directory). If you **copied only the `.job` file** elsewhere, or the clone on compute nodes differs from where you ran `./dev/setup_local_models.sh`, set **`AXIS_REPO_ROOT`** to the real repo path: `sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_….job`. If the venv is not `<repo>/.venv`, set **`AXIS_VENV_DIR`**. You must run **`./dev/setup_local_models.sh` once** in that clone on the cluster so `.venv/bin/axis-pn` exists on the shared filesystem.
+
 ### Submit a single-patient CPU job (`xtreme`)
 
 The batch file requests **1 node**, **96 CPUs**, **2.0 TB RAM**, partition **`xtreme`**, and **no** wall-clock limit (your site may still inject a default cap—add `#SBATCH --time=…` to the job file if required).

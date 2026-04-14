@@ -16,6 +16,8 @@
 #   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
 #
 # Optional overrides (export before sbatch or pass via --export):
+#   AXIS_REPO_ROOT   — absolute path to repo root if this .job file is not under dev/ in the clone
+#   AXIS_VENV_DIR    — path to venv if not <repo>/.venv (must contain bin/axis-pn)
 #   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
 #   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
 #   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
@@ -26,8 +28,18 @@ set -euo pipefail
 
 CASE_NAME="${CASE_NAME:-KiTS-00000}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "${REPO_ROOT}"
+if [[ -n "${AXIS_REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd "${AXIS_REPO_ROOT}" && pwd)" || {
+    echo "AXIS_REPO_ROOT is not a directory: ${AXIS_REPO_ROOT}" >&2
+    exit 1
+  }
+else
+  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+cd "${REPO_ROOT}" || exit 1
+
+VENV_DIR="${AXIS_VENV_DIR:-${REPO_ROOT}/.venv}"
+AXIS_PN="${VENV_DIR}/bin/axis-pn"
 
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
 export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
@@ -38,10 +50,19 @@ export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-96}"
 export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms/c4kc_kits}"
 export AXIS_DEVICE="${AXIS_DEVICE:-cpu}"
 
-if [[ ! -x "${REPO_ROOT}/.venv/bin/axis-pn" ]]; then
-  echo "Missing .venv with axis-pn. On a login/build node, run once from the repo root (uses python3.10 by default):" >&2
-  echo "  ./dev/setup_local_models.sh" >&2
+if [[ ! -x "${AXIS_PN}" ]]; then
+  echo "Cannot run axis-pn at: ${AXIS_PN}" >&2
+  echo "  REPO_ROOT=${REPO_ROOT}" >&2
+  echo "  VENV_DIR=${VENV_DIR}" >&2
+  echo "Fix one of:" >&2
+  echo "  1) On a login/build node, create the venv in this clone:" >&2
+  echo "       cd ${REPO_ROOT} && ./dev/setup_local_models.sh" >&2
+  echo "  2) If your venv lives elsewhere: export AXIS_VENV_DIR=/path/to/venv before sbatch" >&2
+  echo "  3) If sbatch used a copied job script, set the repo root:" >&2
+  echo "       sbatch --export=ALL,AXIS_REPO_ROOT=${REPO_ROOT} dev/slurm_xtreme_kits_cpu.job" >&2
+  echo "     (or run sbatch from inside the repo so the script path is correct.)" >&2
   exit 1
 fi
 
+export AXIS_VENV_DIR="${VENV_DIR}"
 exec bash "${REPO_ROOT}/dev/run_local_kits.sh" "${CASE_NAME}"
