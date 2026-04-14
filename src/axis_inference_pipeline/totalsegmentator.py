@@ -35,6 +35,8 @@ def run_totalsegmentator(
     cmd: list[str] = [binary, "-i", str(input_image), "-o", str(output_dir)]
     if config.task:
         cmd.extend(["--task", config.task])
+    if config.device:
+        cmd.extend(["--device", config.device])
     cmd.extend(list(config.extra_args))
     proc = run_subprocess_logged(cmd, label="TotalSegmentator")
     if proc.returncode == 0:

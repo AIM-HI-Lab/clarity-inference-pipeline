@@ -30,6 +30,8 @@
 #   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
 #   AXIS_DICOM_BACKEND — auto (default), sitk, or dcm2niix; auto uses SimpleITK when dcm2niix is missing
 #   AXIS_DCM2NIIX    — full path to dcm2niix if you use --dicom-backend dcm2niix without it on PATH
+#   AXIS_TOTALSEG_DEVICE — TotalSegmentator --device: use "cpu" if PyTorch warns the NVIDIA driver is too old
+#                          (SWP --device cuda can still fail until PyTorch matches the host driver).
 #
 # If your cluster uses a different GPU syntax, replace or edit the #SBATCH --gres line
 # (e.g. --gpus-per-node=1, or partition-specific flags).

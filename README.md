@@ -141,6 +141,7 @@ Useful flags:
 - `--device cpu|cuda`: SWP inference device override
 - `--dicom-backend auto|dcm2niix|sitk`: DICOM→NIfTI via external **dcm2niix** (default **auto** picks it when on `PATH`) or in-process **SimpleITK** (GDCM). Env `AXIS_DICOM_BACKEND` overrides the flag.
 - `--totalseg-extra "..."` or env `AXIS_TOTALSEG_EXTRA`: optional extra TotalSegmentator CLI arguments (default: full `total` task).
+- `--totalseg-device cpu|gpu|…` or env `AXIS_TOTALSEG_DEVICE`: TotalSegmentator’s PyTorch device. Defaults to **cpu** when `--device cpu`; otherwise TotalSegmentator’s default (often GPU). Use **`cpu`** here if PyTorch warns your **NVIDIA driver is too old** while `--device cuda` is set for SWP.
 - `--tumor-extra "..."` or env `AXIS_TUMOR_EXTRA`: optional extra nnU-Net tumor-segmentation CLI arguments.
 - `--skip-inference`: stop after building SWP-ready NIfTI inputs
 - `--skip-tumor`: create kidney-only SWP masks
@@ -278,6 +279,8 @@ sbatch dev/slurm_gpu_kits.job
 ```
 
 **Do you need a separate venv?** **No** — use the **same** `.venv` from `./dev/setup_local_models.sh` as for CPU. You still need **`axis-pn`** and deps installed there. For **`--device cuda`**, the PyTorch inside that venv must be **CUDA-enabled** (many default `pip install torch` wheels on clusters are CPU-only). After the normal setup, install a CUDA build that matches your node’s driver/CUDA stack, e.g. follow [PyTorch’s install selector](https://pytorch.org/get-started/locally/), or use a cluster module for PyTorch and point `AXIS_PYTHON` at that environment if your admins recommend it.
+
+**PyTorch says the NVIDIA driver is too old** (or CUDA init fails): the **GPU driver on the node** must be **new enough** for the **PyTorch CUDA build** you installed (e.g. a cu128 wheel can require a newer driver than the cluster has). **TotalSegmentator** uses the same PyTorch; it may warn and fall back. To run TotalSegmentator on **CPU** only while you debug drivers, set **`export AXIS_TOTALSEG_DEVICE=cpu`** (or `--totalseg-device cpu`) before `sbatch`. **nnU-Net** tumor and **SWP** (`--device cuda`) still need a working CUDA stack for GPU; if they also fail, use **`AXIS_DEVICE=cpu`** for an all-CPU run or reinstall PyTorch to match the host driver.
 
 ### Parity with Docker (same software path)
 

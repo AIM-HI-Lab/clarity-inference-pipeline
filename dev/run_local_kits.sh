@@ -174,6 +174,11 @@ PY
     echo "dcm2niix not on PATH and AXIS_DCM2NIIX not set; use --dicom-backend auto (default) or sitk." >&2
     return 1
   fi
+  if [[ -n "${AXIS_TOTALSEG_DEVICE:-}" ]]; then
+    AXIS_PREDICT_CMD+=(--totalseg-device "${AXIS_TOTALSEG_DEVICE}")
+  elif [[ "${DEVICE}" == "cpu" ]]; then
+    AXIS_PREDICT_CMD+=(--totalseg-device cpu)
+  fi
   if [[ -n "${AXIS_TOTALSEG_EXTRA:-}" ]]; then
     AXIS_PREDICT_CMD+=(--totalseg-extra "${AXIS_TOTALSEG_EXTRA}")
   fi
