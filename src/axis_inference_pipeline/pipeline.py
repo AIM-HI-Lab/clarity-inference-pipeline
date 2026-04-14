@@ -278,8 +278,7 @@ def run_pipeline(
                     warnings.warn(
                         f"Case {case_id}: no SWP label 2 (tumor) after nnU-Net + mask fusion — "
                         f"omitting from axis-pn manifest. Inspect {case_paths['tumor_segmentation']} "
-                        f"and {adapted}. Pass --continue-on-empty-tumor (already set) to allow the "
-                        "pipeline to finish; omit it to fail fast.",
+                        f"and {adapted}. Default is to continue; use --fail-on-empty-tumor to abort on this.",
                         stacklevel=2,
                     )
                 else:
@@ -288,9 +287,9 @@ def run_pipeline(
                         "axis-pn needs a non-empty tumor mask to sample patches. "
                         f"Inspect nnU-Net output {case_paths['tumor_segmentation']} (unique labels) "
                         f"and {adapted}. "
-                        "Common causes: KiTS model predicts no tumor for this scan, wrong CT series "
+                        "Common causes: nnU-Net predicts no tumor for this scan, wrong CT series "
                         "(use a diagnostic CT, not SEG), or a bad/cached tumor run. "
-                        "Re-run with --continue-on-empty-tumor to finish without axis-pn for this case."
+                        "Omit --fail-on-empty-tumor (default) to skip axis-pn for this case and continue."
                     )
             else:
                 axis_pn_case_ids.append(case_id)

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Batch runner: one patient folder or ALL cases under a data root (any DICOM layout you use).
+# TCIA KiTS19-style folders (e.g. KiTS-00000) are a convenient test case; the same pipeline
+# applies to your own datasets — one subdirectory per case, each containing a nested DICOM tree.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -7,7 +10,8 @@ VENV_PYTHON="${VENV_DIR}/bin/python"
 AXIS_BIN="${VENV_DIR}/bin/axis-pn"
 ENV_FILE="${REPO_ROOT}/dev/axis_local_env.sh"
 
-KITS_ROOT_DEFAULT="${HOME}/Desktop/kits_data/C4KC-KiTS-NBIA-manifest (1)/c4kc_kits"
+# Default: example tree from C4KC / KiTS; override with AXIS_DICOM_CASES_ROOT for your data.
+DICOM_CASES_ROOT_DEFAULT="${HOME}/Desktop/kits_data/C4KC-KiTS-NBIA-manifest (1)/c4kc_kits"
 WEIGHTS_DIR_DEFAULT="${REPO_ROOT}/pnvrn_folds"
 WORK_ROOT_DEFAULT="${REPO_ROOT}/local-runs"
 DEVICE_DEFAULT="cpu"
@@ -49,20 +53,23 @@ fi
 if [[ -n "${SLURM_TMPDIR:-}" ]]; then
   export TMPDIR="${TMPDIR:-${SLURM_TMPDIR}}"
 fi
-# Faster nnU-Net v1 KiTS inference: disable test-time augmentation unless AXIS_TUMOR_EXTRA is set
+# Faster nnU-Net v1 tumor inference: disable test-time augmentation unless AXIS_TUMOR_EXTRA is set
 # (including to empty, to keep default nnU-Net TTA).
 if [ -z "${AXIS_TUMOR_EXTRA+x}" ]; then
   export AXIS_TUMOR_EXTRA="--disable_tta"
 fi
 
-REQUEST="${1:-KiTS-00000}"
+# Parent directory: each immediate subdirectory is one case/patient (any name).
+# AXIS_KITS_ROOT is a deprecated alias for AXIS_DICOM_CASES_ROOT.
+REQUEST="${1:-ALL}"
 DEVICE="${AXIS_DEVICE:-$DEVICE_DEFAULT}"
-KITS_ROOT="${AXIS_KITS_ROOT:-$KITS_ROOT_DEFAULT}"
+DICOM_CASES_ROOT="${AXIS_DICOM_CASES_ROOT:-${AXIS_KITS_ROOT:-$DICOM_CASES_ROOT_DEFAULT}}"
 WEIGHTS_DIR="${AXIS_WEIGHTS_DIR:-$WEIGHTS_DIR_DEFAULT}"
 WORK_ROOT="${AXIS_WORK_ROOT:-$WORK_ROOT_DEFAULT}"
 
-if [[ ! -d "${KITS_ROOT}" ]]; then
-  echo "KiTS root not found: ${KITS_ROOT}"
+if [[ ! -d "${DICOM_CASES_ROOT}" ]]; then
+  echo "DICOM cases root not found: ${DICOM_CASES_ROOT}"
+  echo "Set AXIS_DICOM_CASES_ROOT to the parent of your per-patient folders."
   exit 1
 fi
 
@@ -83,21 +90,21 @@ run_one_case() {
   local RUN_NAME="${AXIS_RUN_NAME:-${CASE_NAME}}"
   local WORK_DIR="${WORK_ROOT}/${RUN_NAME}"
 
-  if [[ ! -d "${KITS_ROOT}/${CASE_NAME}" ]]; then
-    echo "Case directory not found: ${KITS_ROOT}/${CASE_NAME}"
+  if [[ ! -d "${DICOM_CASES_ROOT}/${CASE_NAME}" ]]; then
+    echo "Case directory not found: ${DICOM_CASES_ROOT}/${CASE_NAME}"
     return 1
   fi
 
   local SERIES_DIR
-  SERIES_DIR="$("${VENV_PYTHON}" - <<'PY' "${KITS_ROOT}" "${CASE_NAME}"
+  SERIES_DIR="$("${VENV_PYTHON}" - <<'PY' "${DICOM_CASES_ROOT}" "${CASE_NAME}"
 from pathlib import Path
 import sys
 
 import pydicom
 
-kits_root = Path(sys.argv[1])
+cases_root = Path(sys.argv[1])
 case_name = sys.argv[2]
-case_root = kits_root / case_name
+case_root = cases_root / case_name
 
 
 def modality_for_series_dir(series_dir: Path) -> str | None:
@@ -130,9 +137,8 @@ for directory in sorted(case_root.rglob("*")):
 if not candidates:
     raise SystemExit(f"No DICOM series directory found under {case_root}")
 
-# Prefer diagnostic CT volumes. KiTS cases often include a DICOM SEG series; using it
-# yields a label/probability map (0–1), not HU — TotalSegmentator and nnU-Net then
-# produce empty masks and axis-pn fails with "Primary object not found in mask".
+# Prefer diagnostic CT. Some collections ship a DICOM SEG series; using it as CT yields
+# label maps instead of HU — TotalSegmentator / nnU-Net then produce unusable masks.
 non_seg = [(d, m) for d, m in candidates if m != "SEG"]
 if not non_seg:
     raise SystemExit(
@@ -154,7 +160,7 @@ PY
   echo "  work dir: ${WORK_DIR}"
   echo "  weights: ${WEIGHTS_DIR}"
   echo "  device: ${DEVICE}"
-  echo "  tumor backend: nnUNet v1 Task135_KiTS2021"
+  echo "  tumor backend: nnUNet v1 Task135 (public KiTS21-pretrained checkpoint)"
 
   # Set AXIS_REUSE_CACHED=1 to skip DICOM/TotalSegmentator/tumor when outputs already exist under WORK_DIR (faster iteration on SWP inference).
   #
@@ -193,8 +199,8 @@ PY
   if [[ "${AXIS_REUSE_CACHED:-0}" == "1" ]]; then
     AXIS_PREDICT_CMD+=(--reuse-cached-artifacts)
   fi
-  if [[ "${AXIS_CONTINUE_ON_EMPTY_TUMOR:-0}" == "1" ]]; then
-    AXIS_PREDICT_CMD+=(--continue-on-empty-tumor)
+  if [[ "${AXIS_FAIL_ON_EMPTY_TUMOR:-0}" == "1" ]]; then
+    AXIS_PREDICT_CMD+=(--fail-on-empty-tumor)
   fi
 
   PATH="${VENV_DIR}/bin:${PATH}" "${AXIS_PREDICT_CMD[@]}"
@@ -204,12 +210,12 @@ PY
   echo "Prediction JSON: ${WORK_DIR}/predictions/predictions.json"
 }
 
-run_all_kits_cases() {
+run_all_cases_under_root() {
   shopt -s nullglob
   local -a dirs
-  dirs=("${KITS_ROOT}"/KiTS-*/)
+  dirs=("${DICOM_CASES_ROOT}"/*/)
   if [[ ${#dirs[@]} -eq 0 ]]; then
-    echo "No KiTS-* case directories under: ${KITS_ROOT}"
+    echo "No case subdirectories under: ${DICOM_CASES_ROOT}"
     exit 1
   fi
   local -a names=()
@@ -219,7 +225,7 @@ run_all_kits_cases() {
     names+=("$(basename "${d%/}")")
   done
   if [[ ${#names[@]} -eq 0 ]]; then
-    echo "No KiTS-* case directories under: ${KITS_ROOT}"
+    echo "No case subdirectories under: ${DICOM_CASES_ROOT}"
     exit 1
   fi
   local _sorted
@@ -230,7 +236,7 @@ run_all_kits_cases() {
     names_sorted+=("${line}")
   done <<< "${_sorted}"
   names=("${names_sorted[@]}")
-  echo "Running ${#names[@]} cases under ${KITS_ROOT}: ${names[*]}"
+  echo "Running ${#names[@]} case folder(s) under ${DICOM_CASES_ROOT}: ${names[*]}"
   local c
   for c in "${names[@]}"; do
     echo ""
@@ -243,7 +249,7 @@ run_all_kits_cases() {
 }
 
 if [[ "${REQUEST}" == "ALL" || "${REQUEST}" == "--all" || "${REQUEST}" == "-a" ]]; then
-  run_all_kits_cases
+  run_all_cases_under_root
 else
   run_one_case "${REQUEST}"
 fi

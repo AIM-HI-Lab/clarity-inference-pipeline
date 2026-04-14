@@ -7,36 +7,33 @@
 #SBATCH --gres=gpu:1
 # Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
 #
-# KiTS dry run on GPU: same flow as dev/run_local_kits.sh with AXIS_DEVICE=cuda.
-# --mem is in megabytes on typical Slurm sites (90000 ≈ 88 GiB).
+# GPU batch run: same flow as dev/run_local_dicom_batch.sh with AXIS_DEVICE=cuda.
+# Works for any per-patient DICOM tree (TCIA KiTS19 is a common test set; layout is not KiTS-specific).
+# --mem is in megabytes on typical Slurm sites.
 #
 # Submit (example) — run from INSIDE the repo so SLURM_SUBMIT_DIR is the clone.
-# (Slurm copies this script to a spool path; do not rely on the script file location.)
 #   cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job
 # Or: sbatch --chdir=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job  (Slurm 20.11+)
 # Or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job
 #
-# Process one case, or all KiTS-* folders under AXIS_KITS_ROOT (default: ALL):
-#   sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_gpu_kits.job
+# Process one case folder, or ALL immediate subfolders under AXIS_DICOM_CASES_ROOT (default: ALL):
+#   sbatch --export=ALL,CASE_NAME=patient_042 dev/slurm_gpu_kits.job
 #   sbatch dev/slurm_gpu_kits.job   # CASE_NAME defaults to ALL
 #
 # Optional overrides (export before sbatch or pass via --export):
-#   TMPDIR — nnU-Net may spill large predictions to disk ("output too large for process-process
-#            communication"); on slow BeeGFS/NFS this can take many minutes. run_local_kits.sh sets
-#            TMPDIR from SLURM_TMPDIR when present; or: export TMPDIR=/tmp/$USER/axis-tmp
-#   AXIS_TUMOR_EXTRA — default is --disable_tta (faster nnU-Net v1). Set explicitly to add flags.
-#   AXIS_CONTINUE_ON_EMPTY_TUMOR=1 — pass --continue-on-empty-tumor when KiTS nnU-Net has no tumor voxels.
+#   TMPDIR — nnU-Net may spill large predictions to disk; use fast node-local scratch.
+#   AXIS_TUMOR_EXTRA — default via run_local_dicom_batch.sh includes --disable_tta for speed.
+#   AXIS_FAIL_ON_EMPTY_TUMOR=1 — abort if nnU-Net yields no tumor voxels (default: skip axis-pn for that case).
 #   AXIS_REPO_ROOT   — absolute path to repo root if this .job file is not under dev/ in the clone
 #   AXIS_VENV_DIR    — path to venv if not <repo>/.venv (must contain bin/axis-pn)
 #   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
-#   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
+#   AXIS_DICOM_CASES_ROOT — parent of per-patient folders (each subdir = one case). AXIS_KITS_ROOT is deprecated alias.
 #   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
 #   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
-#   AXIS_DICOM_BACKEND — auto (default), sitk, or dcm2niix; auto uses SimpleITK when dcm2niix is missing
-#   AXIS_DCM2NIIX    — full path to dcm2niix if you use --dicom-backend dcm2niix without it on PATH
+#   AXIS_DICOM_BACKEND — auto (default), sitk, or dcm2niix
+#   AXIS_DCM2NIIX    — full path to dcm2niix if needed
 #
-# If your cluster uses a different GPU syntax, replace or edit the #SBATCH --gres line
-# (e.g. --gpus-per-node=1, or partition-specific flags).
+# If your cluster uses a different GPU syntax, replace or edit the #SBATCH --gres line.
 #
 set -euo pipefail
 
@@ -49,11 +46,11 @@ if [[ -n "${AXIS_REPO_ROOT:-}" ]]; then
     echo "AXIS_REPO_ROOT is not a directory: ${AXIS_REPO_ROOT}" >&2
     exit 1
   }
-elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/dev/run_local_kits.sh" ]]; then
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/dev/run_local_dicom_batch.sh" ]]; then
   REPO_ROOT="$(cd "${SLURM_SUBMIT_DIR}" && pwd)"
 else
   _FROM_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  if [[ -f "${_FROM_SCRIPT}/dev/run_local_kits.sh" ]]; then
+  if [[ -f "${_FROM_SCRIPT}/dev/run_local_dicom_batch.sh" ]]; then
     REPO_ROOT="${_FROM_SCRIPT}"
   else
     echo "Could not find axis-inference-pipeline repo root." >&2
@@ -79,11 +76,10 @@ export MKL_NUM_THREADS="${CPUS}"
 export OPENBLAS_NUM_THREADS="${CPUS}"
 export NUMEXPR_NUM_THREADS="${CPUS}"
 
-# AIM-HI Lab layout: .../kits-dicoms/KiTS-XXXXX (each case is a direct child of AXIS_KITS_ROOT)
-export AXIS_KITS_ROOT="${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms}"
+export AXIS_DICOM_CASES_ROOT="${AXIS_DICOM_CASES_ROOT:-${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms}}"
 export AXIS_DEVICE="${AXIS_DEVICE:-cuda}"
 
-# GPU diagnostics before the pipeline (Slurm-only users: see dev/slurm_check_gpu.job). Disable with AXIS_DEBUG_CUDA=0.
+# GPU diagnostics before the pipeline (same as dev/check_gpu_env.sh). Disable with AXIS_DEBUG_CUDA=0.
 if [[ "${AXIS_DEBUG_CUDA:-1}" != "0" ]]; then
   echo "========== GPU / torch check (AXIS_DEBUG_CUDA=0 to skip) =========="
   bash "${REPO_ROOT}/dev/check_gpu_env.sh" || true
@@ -106,4 +102,4 @@ if [[ ! -x "${AXIS_PN}" ]]; then
 fi
 
 export AXIS_VENV_DIR="${VENV_DIR}"
-exec bash "${REPO_ROOT}/dev/run_local_kits.sh" "${CASE_NAME}"
+exec bash "${REPO_ROOT}/dev/run_local_dicom_batch.sh" "${CASE_NAME}"

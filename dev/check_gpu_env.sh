@@ -3,7 +3,7 @@
 #
 #   ./dev/check_gpu_env.sh
 #
-# For Slurm-only access, submit: sbatch dev/slurm_check_gpu.job
+# For Slurm-only access, this script runs at the start of dev/slurm_gpu_kits.job (or run it on an interactive GPU node).
 #
 set -euo pipefail
 
@@ -46,7 +46,7 @@ if torch.version.cuda is None:
     print(">>>   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu124")
     print(">>> Fallback (older drivers):")
     print(">>>   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118")
-    print(">>> Then: sbatch dev/slurm_check_gpu.job  (or your pipeline) again.")
+    print(">>> Then re-run dev/slurm_gpu_kits.job or axis-pn on a GPU node.")
     raise SystemExit(0)
 
 if torch.cuda.is_available():

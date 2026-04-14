@@ -146,6 +146,7 @@ Useful flags:
 - `--tumor-extra "..."` or env `AXIS_TUMOR_EXTRA`: optional extra nnU-Net tumor-segmentation CLI arguments.
 - `--skip-inference`: stop after building SWP-ready NIfTI inputs
 - `--skip-tumor`: create kidney-only SWP masks
+- `--fail-on-empty-tumor`: abort if tumor segmentation is empty (default: **continue** and skip axis-pn for that case only)
 - `--enable-phase-gating --phase-entrypoint ...`: enable optional phase selection
 
 ## Output Layout
@@ -166,7 +167,7 @@ The vendored SWP CLI (`python -m segmentation_weighted_planes.inference`) follow
 
 ## Local Dev Runner
 
-There is a convenience script at `dev/run_local_kits.sh`.
+There is a batch helper at **`dev/run_local_dicom_batch.sh`**: one folder per patient under a data root, each containing a nested DICOM tree (same rules as `axis-pn predict --input`). **TCIA KiTS19** is a convenient public test; **any** layout with one case per subdirectory works.
 
 First-time setup:
 
@@ -184,21 +185,23 @@ That script:
 - downloads the public KiTS21 pretrained tumor model
 - preps the TotalSegmentator cache location
 
-Then run a KiTS case with one command:
+Then run one case folder (subdirectory name under the data root):
 
 ```bash
-bash dev/run_local_kits.sh KiTS-00000
+bash dev/run_local_dicom_batch.sh my_case_001
 ```
 
-Run **every** `KiTS-*` directory under your KiTS root (sorted): pass `ALL` (or `--all` / `-a`):
+Run **every** immediate subdirectory under the data root (sorted): pass `ALL` (or `--all` / `-a`):
 
 ```bash
-AXIS_KITS_ROOT=/path/to/kits-dicoms bash dev/run_local_kits.sh ALL
+AXIS_DICOM_CASES_ROOT=/path/to/parent bash dev/run_local_dicom_batch.sh ALL
 ```
+
+(`AXIS_KITS_ROOT` is still accepted as an alias for `AXIS_DICOM_CASES_ROOT`.)
 
 By default that script uses:
 
-- KiTS root: `~/Desktop/kits_data/C4KC-KiTS-NBIA-manifest (1)/c4kc_kits`
+- Data root: `~/Desktop/kits_data/C4KC-KiTS-NBIA-manifest (1)/c4kc_kits` (override with `AXIS_DICOM_CASES_ROOT`)
 - weights: `<repo>/pnvrn_folds`
 - output root: `<repo>/local-runs`
 - device: `cpu`
@@ -207,26 +210,28 @@ By default that script uses:
 You can override them with:
 
 ```bash
-AXIS_DEVICE=cuda AXIS_KITS_ROOT=/path/to/kits-dicoms bash dev/run_local_kits.sh KiTS-00000
+AXIS_DEVICE=cuda AXIS_DICOM_CASES_ROOT=/path/to/parent bash dev/run_local_dicom_batch.sh my_case_001
 ```
 
-## Cluster dry run (Slurm, CPU, no Docker)
+If nnU-Net finds **no tumor voxels** for a case, the pipeline **continues** by default and **skips axis-pn** for that case only. Set **`AXIS_FAIL_ON_EMPTY_TUMOR=1`** or pass **`--fail-on-empty-tumor`** to `axis-pn predict` to abort instead.
 
-This is the path for **validating the pipeline on a shared HPC node** when you cannot use Docker (typical on clusters). It runs the **same** `axis-pn predict` path as `dev/run_local_kits.sh`, which matches the default Docker invocation: TotalSegmentator **total** task, **nnU-Net v1** KiTS21 tumor model (`Task135`, `3d_cascade_fullres`), then SWP ensemble inference with **`--device cpu`**.
+## Cluster (Slurm)
 
-### Data layout (KiTS)
+This is for **running on a shared HPC node** without Docker. It uses the **same** `axis-pn predict` path as `dev/run_local_dicom_batch.sh` and **`dev/docker-predict.sh`**: TotalSegmentator **total** task, **nnU-Net v1** KiTS21 tumor model (`Task135`, `3d_cascade_fullres`), then SWP ensemble inference. The checked-in Slurm script uses **`--device cuda`**; use CPU only if you edit it (see below).
 
-Point `AXIS_KITS_ROOT` at the directory that **directly contains** one folder per case:
+### Data layout (one folder per case)
+
+Point **`AXIS_DICOM_CASES_ROOT`** at the directory that **directly contains** one folder per case (any naming). Example with KiTS-style names:
 
 ```text
-/path/to/kits-dicoms/
-  KiTS-00000/
+/path/to/dicom-cases/
+  case-00000/
     ... nested DICOM series folders ...
-  KiTS-00001/
+  case-00001/
   ...
 ```
 
-Example used for AIM-HI Lab storage: `/home/jonnalr/AIM-HI-Lab/kits-dicoms`. Each `KiTS-XXXXX` directory should contain the usual nested DICOM tree (the helper picks a diagnostic **CT** series and skips **SEG**). If your tree has an extra level (e.g. `c4kc_kits/KiTS-XXXXX`), set `AXIS_KITS_ROOT` to that parent instead.
+Example used for AIM-HI Lab storage: `/home/jonnalr/AIM-HI-Lab/kits-dicoms`. Each case directory should contain the usual nested DICOM tree (the helper picks a diagnostic **CT** series and skips **SEG**). If your tree has an extra level (e.g. `c4kc_kits/KiTS-XXXXX`), set **`AXIS_DICOM_CASES_ROOT`** to that parent. **`AXIS_KITS_ROOT`** is a deprecated alias for the same variable.
 
 ### One-time setup on the cluster
 
@@ -250,53 +255,26 @@ Copy or link **PNvsRN weights** (`pnvrn_folds/`-style tree, 25× `.pth`) somewhe
 
 **`No such file or directory: 'dcm2niix'`:** With **`--dicom-backend auto`** (the default), the pipeline uses **SimpleITK** (GDCM) when `dcm2niix` is not on `PATH`, as long as **`pip install`** pulled **SimpleITK** (declared in this package). To force that path: **`export AXIS_DICOM_BACKEND=sitk`**. Alternatively install **`dcm2niix`** and/or set **`AXIS_DCM2NIIX`** to its full path. Batch jobs often have a minimal `PATH`; **`module load`** may be needed if you insist on **dcm2niix**.
 
-**Slurm says it cannot find `axis-pn` / `.venv`, or `REPO_ROOT` looks like `.../slurm/.../spool/...`:** Slurm **copies** the batch script to a **spool** directory and runs that copy, so **`$BASH_SOURCE` is not inside your git clone**. The scripts use **`SLURM_SUBMIT_DIR`** (the directory you were in when you ran `sbatch`) when it contains `dev/run_local_kits.sh`. **Submit from inside the repo:** `cd /path/to/axis-inference-pipeline && sbatch dev/slurm_….job`, or set **`AXIS_REPO_ROOT`**: `sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_….job`. If the venv is not `<repo>/.venv`, set **`AXIS_VENV_DIR`**. Run **`./dev/setup_local_models.sh` once** in that clone on the cluster so `.venv/bin/axis-pn` exists on the shared filesystem.
+**Slurm says it cannot find `axis-pn` / `.venv`, or `REPO_ROOT` looks like `.../slurm/.../spool/...`:** Slurm **copies** the batch script to a **spool** directory and runs that copy, so **`$BASH_SOURCE` is not inside your git clone**. The job script resolves the repo when **`SLURM_SUBMIT_DIR`** contains `dev/run_local_dicom_batch.sh`. **Submit from inside the repo:** `cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job`, or set **`AXIS_REPO_ROOT`**: `sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job`. If the venv is not `<repo>/.venv`, set **`AXIS_VENV_DIR`**. Run **`./dev/setup_local_models.sh` once** in that clone on the cluster so `.venv/bin/axis-pn` exists on the shared filesystem.
 
-### Submit a single-patient CPU job (`xtreme`)
+### GPU batch job (`dev/slurm_gpu_kits.job`)
 
-The batch file requests **1 node**, **96 CPUs**, **2.0 TB RAM**, partition **`xtreme`**, and **no** wall-clock limit (your site may still inject a default cap—add `#SBATCH --time=…` to the job file if required). By default **`CASE_NAME=ALL`**: the job runs **`dev/run_local_kits.sh`**, which loops **every** `KiTS-*` folder under `AXIS_KITS_ROOT`.
-
-```bash
-cd /path/to/axis-inference-pipeline
-chmod +x dev/slurm_xtreme_kits_cpu.job
-# Optional: export AXIS_KITS_ROOT=/your/path/kits-dicoms
-# Optional: export AXIS_WEIGHTS_DIR=/your/path/pnvrn_folds
-# Optional: export AXIS_WORK_ROOT=/your/scratch/axis-runs
-sbatch dev/slurm_xtreme_kits_cpu.job
-```
-
-Run a **single** case:
-
-```bash
-sbatch --export=ALL,CASE_NAME=KiTS-00042 dev/slurm_xtreme_kits_cpu.job
-```
-
-Logs: `axis-kits-cpu-<jobid>.out` / `.err` in the submission directory.
-
-**Runtime (rough, one patient, CPU):** dominated by TotalSegmentator (full **total** task) and nnU-Net tumor inference, then 25-fold SWP inference. Expect **on the order of several hours** per typical KiTS CT on a large CPU node—often roughly **~4–12+ hours** depending on voxel size, slice count, filesystem speed, and cluster load. Treat this as a **dry-run / validation** window, not a tight SLA.
-
-### GPU job (`gpu` partition)
-
-`dev/slurm_gpu_kits.job` requests **partition `gpu`**, **1 task**, **12 CPUs/task**, **`--mem=90000`** (megabytes on typical Slurm), **`--gres=gpu:1`**, and runs with **`AXIS_DEVICE=cuda`** (override with `AXIS_DEVICE` if needed). Like the CPU job, **`CASE_NAME` defaults to `ALL`** (every `KiTS-*` under `AXIS_KITS_ROOT`). Edit the `#SBATCH` lines if your site uses different GPU or memory syntax.
+The checked-in script requests **partition `gpu`**, **1 task**, **12 CPUs/task**, **`--mem=32200`** (megabytes; edit as needed), **`--gres=gpu:1`**, and **`AXIS_DEVICE=cuda`**. It **`exec`s `dev/run_local_dicom_batch.sh`**; **`CASE_NAME` defaults to `ALL`** (every immediate subdirectory under **`AXIS_DICOM_CASES_ROOT`**). Before the pipeline it runs **`dev/check_gpu_env.sh`** unless **`AXIS_DEBUG_CUDA=0`**. Edit **`#SBATCH`** if your site uses different GPU flags or partitions.
 
 ```bash
 chmod +x dev/slurm_gpu_kits.job
 sbatch dev/slurm_gpu_kits.job
 ```
 
+Log files are typically **`axis-kits-gpu-<jobid>.out`** / **`.err`** in the submission directory (see the **`====`** GPU/torch block in `.out`).
+
+**CPU-only cluster:** Copy **`dev/slurm_gpu_kits.job`** in your clone, set **`export AXIS_DEVICE=cpu`**, remove or relax **`--gres`**, point **`#SBATCH --partition`** at a CPU partition, and increase **`--mem`** / **`--cpus-per-task`** as needed — the same **`run_local_dicom_batch.sh`** entrypoint still applies.
+
+**GPU sanity check without the full pipeline:** On an interactive GPU session, run **`./dev/check_gpu_env.sh`** (same script the Slurm job invokes first).
+
 **Do you need a separate venv?** **No** — use the same `.venv` from `./dev/setup_local_models.sh`. GPU jobs need a **CUDA** PyTorch build that fits the **driver** on the compute nodes; `setup_local_models.sh` handles that via **`AXIS_PYTORCH_CUDA`** (see above). If you see **`The NVIDIA driver on your system is too old`** from TotalSegmentator or nnU-Net, reinstall with **`AXIS_PYTORCH_CUDA=cu118`** (or run the `pip install …/whl/cu118` one-liner above).
 
-**Slurm-only access (no interactive GPU):** Submit a **diagnostics-only** job — same GPU request as real work:
-
-```bash
-cd /path/to/axis-inference-pipeline
-sbatch dev/slurm_check_gpu.job
-# read axis-check-gpu-<jobid>.out
-```
-
-It runs **`dev/check_gpu_env.sh`** on a compute node and prints **`CUDA_VISIBLE_DEVICES`**, **`nvidia-smi`**, **`torch.version.cuda`** (CPU-only vs CUDA build), **`torch.cuda.is_available()`**, a **CUDA tensor smoke test**, and **`ldd`** lines if a library is missing. Edit **`#SBATCH`** in that file if your site uses e.g. **`--gpus-per-node=1`** instead of **`--gres=gpu:1`**, or a different **`--partition`**.
-
-**`dev/slurm_gpu_kits.job`** runs the same check **before** the pipeline by default (**`AXIS_DEBUG_CUDA`** defaults to **1**; set **`AXIS_DEBUG_CUDA=0`** to skip). Check **`axis-kits-gpu-*.out`** for the block between the `====` lines.
+**Runtime (rough):** dominated by TotalSegmentator, nnU-Net, then 25-fold SWP — often **hours per case** depending on volume size and filesystem; treat as a validation window, not a tight SLA.
 
 **Still no GPU after that?**
 
@@ -315,7 +293,7 @@ It runs **`dev/check_gpu_env.sh`** on a compute node and prints **`CUDA_VISIBLE_
 
 | Piece | Docker (CPU image) | Cluster (this repo) |
 | --- | --- | --- |
-| Entry | `axis-pn predict … --device cpu` (see `dev/docker-predict.sh`) | `dev/run_local_kits.sh` → same CLI flags + CT series selection |
+| Entry | `axis-pn predict … --device cpu` (see `dev/docker-predict.sh`) | `dev/run_local_dicom_batch.sh` → same CLI flags + CT series selection |
 | nnU-Net v1/v2 + TotalSegmentator dirs | Set in `Dockerfile` / `docker/entrypoint.sh` | Set by `dev/setup_local_models.sh` → `dev/axis_local_env.sh` |
 | Tumor model | Task135 zip baked into image | Downloaded by `setup_local_models.sh` |
 | Python | 3.11 in `Dockerfile` | 3.10 default in `setup_local_models.sh` (`AXIS_PYTHON` to override; `>=3.10` per `pyproject.toml`) |

@@ -108,7 +108,7 @@ class PipelineConfig:
     reuse_cached_artifacts: bool = False
     # When False, mask adaptation with no SWP label-2 voxels raises. When True, the run continues,
     # that case is omitted from swp_manifest.json, and axis-pn runs only on remaining cases.
-    continue_on_empty_tumor: bool = False
+    continue_on_empty_tumor: bool = True
     dicom_backend: str = "dcm2niix"
     """``dcm2niix`` (external CLI) or ``sitk`` (SimpleITK / GDCM in-process)."""
     dcm2niix_binary: str = "dcm2niix"

@@ -196,12 +196,12 @@ def predict(
             help="Skip DICOM→NIfTI, TotalSegmentator, and tumor when those outputs already exist under --workspace.",
         ),
     ] = False,
-    continue_on_empty_tumor: Annotated[
+    fail_on_empty_tumor: Annotated[
         bool,
         typer.Option(
-            "--continue-on-empty-tumor",
-            help="If nnU-Net yields no tumor (SWP label 2), finish the run and omit that case from "
-            "axis-pn instead of failing (useful for batch KiTS QC).",
+            "--fail-on-empty-tumor",
+            help="Stop the run if tumor segmentation is empty (no SWP label 2). "
+            "Default is to continue and skip axis-pn for that case only.",
         ),
     ] = False,
 ) -> None:
@@ -269,7 +269,7 @@ def predict(
         skip_tumor=skip_tumor,
         skip_inference=skip_inference,
         reuse_cached_artifacts=reuse_cached_artifacts,
-        continue_on_empty_tumor=continue_on_empty_tumor,
+        continue_on_empty_tumor=not fail_on_empty_tumor,
         dicom_backend=dicom_resolved,
         dcm2niix_binary=dcm2niix,
         manifest_name=manifest_name,
