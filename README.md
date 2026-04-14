@@ -229,14 +229,21 @@ From an interactive session on a **login or build node** (adjust paths):
 ```bash
 git clone https://github.com/AIM-HI-Lab/axis-inference-pipeline.git
 cd axis-inference-pipeline
-# Python 3.10 on PATH (or `AXIS_PYTHON=…`) + pip; ensure `dcm2niix` is on PATH (e.g. module load or conda).
+# Python 3.10 on PATH (or `AXIS_PYTHON=…`) + pip.
 ./dev/setup_local_models.sh
+# dcm2niix is NOT installed by pip here — provide it separately (required for DICOM→NIfTI):
+#   - `module load …` / `spack load …` if your HPC provides it; then `which dcm2niix` and save that path, or
+#   - `conda install -n your_env -c conda-forge dcm2niix` and use the full path to the binary, or
+#   - build/install from https://github.com/rordenlab/dcm2niix/releases
+# Pass the binary to jobs: `export AXIS_DCM2NIIX=/full/path/to/dcm2niix` (also use in sbatch: `--export=ALL,AXIS_DCM2NIIX=...`).
 # If you still have an old `.venv312` from earlier docs, remove or ignore it; the venv directory is now `.venv`.
 ```
 
 That creates `.venv`, installs dependencies, downloads TotalSegmentator **total** weights and **Task135_KiTS2021**, and writes `dev/axis_local_env.sh` with **machine-local** nnU-Net directories under the clone.
 
 Copy or link **PNvsRN weights** (`pnvrn_folds/`-style tree, 25× `.pth`) somewhere readable on the cluster and set `AXIS_WEIGHTS_DIR` if it is not `<repo>/pnvrn_folds`.
+
+**`No such file or directory: 'dcm2niix'`:** Batch jobs often start with a minimal `PATH` (no `module load` from your login shell). Install **`dcm2niix`** or locate the binary (`which dcm2niix` after `module load`), then set **`export AXIS_DCM2NIIX=/full/path/to/dcm2niix`** before `sbatch`, or add **`export AXIS_DCM2NIIX=...`** inside the Slurm script after any `module load` lines.
 
 **Slurm says it cannot find `axis-pn` / `.venv`, or `REPO_ROOT` looks like `.../slurm/.../spool/...`:** Slurm **copies** the batch script to a **spool** directory and runs that copy, so **`$BASH_SOURCE` is not inside your git clone**. The scripts use **`SLURM_SUBMIT_DIR`** (the directory you were in when you ran `sbatch`) when it contains `dev/run_local_kits.sh`. **Submit from inside the repo:** `cd /path/to/axis-inference-pipeline && sbatch dev/slurm_….job`, or set **`AXIS_REPO_ROOT`**: `sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_….job`. If the venv is not `<repo>/.venv`, set **`AXIS_VENV_DIR`**. Run **`./dev/setup_local_models.sh` once** in that clone on the cluster so `.venv/bin/axis-pn` exists on the shared filesystem.
 

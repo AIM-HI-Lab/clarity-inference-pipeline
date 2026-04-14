@@ -28,6 +28,7 @@
 #   AXIS_KITS_ROOT   — parent of KiTS-XXXXX folders (default below)
 #   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
 #   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
+#   AXIS_DCM2NIIX    — full path to dcm2niix if not on PATH in batch jobs (common on clusters)
 #
 # If your cluster uses a different GPU syntax, replace or edit the #SBATCH --gres line
 # (e.g. --gpus-per-node=1, or partition-specific flags).
