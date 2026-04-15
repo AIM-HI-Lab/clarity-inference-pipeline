@@ -1,0 +1,4699 @@
+{
+  "format": "swp_inference_aggregated_v1",
+  "input_glob": "inference_shard_*.json",
+  "n_input_files": 25,
+  "source_files": [
+    {
+      "file": "inference_shard_00000.json",
+      "array_task_id": 0,
+      "checkpoint_index": 0,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m1/fold_0.pth"
+    },
+    {
+      "file": "inference_shard_00001.json",
+      "array_task_id": 1,
+      "checkpoint_index": 1,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m1/fold_1.pth"
+    },
+    {
+      "file": "inference_shard_00002.json",
+      "array_task_id": 2,
+      "checkpoint_index": 2,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m1/fold_2.pth"
+    },
+    {
+      "file": "inference_shard_00003.json",
+      "array_task_id": 3,
+      "checkpoint_index": 3,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m1/fold_3.pth"
+    },
+    {
+      "file": "inference_shard_00004.json",
+      "array_task_id": 4,
+      "checkpoint_index": 4,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m1/fold_4.pth"
+    },
+    {
+      "file": "inference_shard_00005.json",
+      "array_task_id": 5,
+      "checkpoint_index": 5,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m2/fold_0.pth"
+    },
+    {
+      "file": "inference_shard_00006.json",
+      "array_task_id": 6,
+      "checkpoint_index": 6,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m2/fold_1.pth"
+    },
+    {
+      "file": "inference_shard_00007.json",
+      "array_task_id": 7,
+      "checkpoint_index": 7,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m2/fold_2.pth"
+    },
+    {
+      "file": "inference_shard_00008.json",
+      "array_task_id": 8,
+      "checkpoint_index": 8,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m2/fold_3.pth"
+    },
+    {
+      "file": "inference_shard_00009.json",
+      "array_task_id": 9,
+      "checkpoint_index": 9,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m2/fold_4.pth"
+    },
+    {
+      "file": "inference_shard_00010.json",
+      "array_task_id": 10,
+      "checkpoint_index": 10,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m3/fold_0.pth"
+    },
+    {
+      "file": "inference_shard_00011.json",
+      "array_task_id": 11,
+      "checkpoint_index": 11,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m3/fold_1.pth"
+    },
+    {
+      "file": "inference_shard_00012.json",
+      "array_task_id": 12,
+      "checkpoint_index": 12,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m3/fold_2.pth"
+    },
+    {
+      "file": "inference_shard_00013.json",
+      "array_task_id": 13,
+      "checkpoint_index": 13,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m3/fold_3.pth"
+    },
+    {
+      "file": "inference_shard_00014.json",
+      "array_task_id": 14,
+      "checkpoint_index": 14,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m3/fold_4.pth"
+    },
+    {
+      "file": "inference_shard_00015.json",
+      "array_task_id": 15,
+      "checkpoint_index": 15,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m4/fold_0.pth"
+    },
+    {
+      "file": "inference_shard_00016.json",
+      "array_task_id": 16,
+      "checkpoint_index": 16,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m4/fold_1.pth"
+    },
+    {
+      "file": "inference_shard_00017.json",
+      "array_task_id": 17,
+      "checkpoint_index": 17,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m4/fold_2.pth"
+    },
+    {
+      "file": "inference_shard_00018.json",
+      "array_task_id": 18,
+      "checkpoint_index": 18,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m4/fold_3.pth"
+    },
+    {
+      "file": "inference_shard_00019.json",
+      "array_task_id": 19,
+      "checkpoint_index": 19,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m4/fold_4.pth"
+    },
+    {
+      "file": "inference_shard_00020.json",
+      "array_task_id": 20,
+      "checkpoint_index": 20,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m5/fold_0.pth"
+    },
+    {
+      "file": "inference_shard_00021.json",
+      "array_task_id": 21,
+      "checkpoint_index": 21,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m5/fold_1.pth"
+    },
+    {
+      "file": "inference_shard_00022.json",
+      "array_task_id": 22,
+      "checkpoint_index": 22,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m5/fold_2.pth"
+    },
+    {
+      "file": "inference_shard_00023.json",
+      "array_task_id": 23,
+      "checkpoint_index": 23,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m5/fold_3.pth"
+    },
+    {
+      "file": "inference_shard_00024.json",
+      "array_task_id": 24,
+      "checkpoint_index": 24,
+      "checkpoint_path": "/mnt/beegfs/jonnalr/data/training_logs/pnvrn_folds/m5/fold_4.pth"
+    }
+  ],
+  "val_rows": [
+    {
+      "case_id": "case_00000",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9529054663533316,
+        0.04709453364666842
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00001",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8652898566616932,
+        0.1347101433383068
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00002",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8808685185055947,
+        0.1191314814944053
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00003",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8874344933642715,
+        0.11256550663572852
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00004",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9280994482613824,
+        0.07190055173861765
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00005",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.33157827652059496,
+        0.6684217234794051
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00006",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8349858929478796,
+        0.16501410705212038
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00007",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9181180467639933,
+        0.08188195323600667
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00008",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.025381843596696853,
+        0.9746181564033032
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00009",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8944189046576503,
+        0.10558109534234973
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00010",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9339924804378461,
+        0.06600751956215391
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00011",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.515074845510535,
+        0.48492515448946505
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00012",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04242757752537727,
+        0.9575724224746227
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00013",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5718624448799529,
+        0.4281375551200472
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00014",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8924174057417622,
+        0.10758259425823781
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00015",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9457656510020024,
+        0.05423434899799759
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00016",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7009500165772624,
+        0.2990499834227376
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00017",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9575989192557245,
+        0.04240108074427553
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00018",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.906054848592612,
+        0.09394515140738804
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00019",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.942492700148141,
+        0.05750729985185899
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00020",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9442885750985442,
+        0.05571142490145576
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00021",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8954656368726864,
+        0.10453436312731355
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00022",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8881120548158651,
+        0.11188794518413488
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00023",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8538698361374554,
+        0.14613016386254457
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00024",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.27208617214113473,
+        0.7279138278588653
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00025",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.08521231517195701,
+        0.914787684828043
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00026",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.1663417880423367,
+        0.8336582119576633
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00027",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9425191105824342,
+        0.057480889417565774
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00028",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.12957412853837014,
+        0.8704258714616299
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00029",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4390337883075699,
+        0.5609662116924301
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00030",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.027505993694067,
+        0.972494006305933
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00031",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.9431419070389893,
+        0.0568580929610107
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00032",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9132111005248589,
+        0.08678889947514108
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00033",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8911557213439665,
+        0.10884427865603356
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00034",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7358829633583082,
+        0.26411703664169184
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00035",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8593753991019912,
+        0.1406246008980088
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00036",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4285527073813137,
+        0.5714472926186863
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00037",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.25013273932039737,
+        0.7498672606796026
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00038",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5241152418218553,
+        0.4758847581781447
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00039",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9506736897189694,
+        0.0493263102810306
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00040",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8887039646910853,
+        0.11129603530891473
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00041",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8764480426881346,
+        0.12355195731186541
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00042",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.2573718217923306,
+        0.7426281782076694
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00043",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9119161729651387,
+        0.08808382703486131
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00044",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.3315128208696842,
+        0.6684871791303157
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00045",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.20002988412976264,
+        0.7999701158702374
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00046",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9143835998882424,
+        0.08561640011175768
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00047",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.1458775372058153,
+        0.8541224627941847
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00048",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7545523864333518,
+        0.2454476135666482
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00049",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7997343855630606,
+        0.20026561443693935
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00050",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9332730355891544,
+        0.06672696441084554
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00051",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.24183108689263463,
+        0.7581689131073653
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00052",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9348171031798119,
+        0.06518289682018803
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00053",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8714807481894968,
+        0.1285192518105032
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00054",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8728378964936201,
+        0.12716210350637994
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00055",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.040749931037425996,
+        0.959250068962574
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00056",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.10972390171140432,
+        0.8902760982885957
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00057",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09041625672951341,
+        0.9095837432704866
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00058",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5428130072262138,
+        0.45718699277378616
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00059",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7580926728155464,
+        0.2419073271844536
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00060",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7787824399303644,
+        0.2212175600696355
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00061",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.32133608853444456,
+        0.6786639114655554
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00062",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9561139907955294,
+        0.04388600920447061
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00063",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6820194405014627,
+        0.3179805594985373
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00064",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8636259827122558,
+        0.1363740172877442
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00065",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8790311475849012,
+        0.1209688524150988
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00066",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6443747044209158,
+        0.3556252955790842
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00067",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.05702815815806389,
+        0.9429718418419362
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00068",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8367505194008118,
+        0.16324948059918826
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00069",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6390127506048884,
+        0.36098724939511156
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00070",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.078127476926893,
+        0.921872523073107
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00071",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7773502510599792,
+        0.2226497489400208
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00072",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9590106780760652,
+        0.040989321923934764
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00073",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.09429958254098893,
+        0.9057004174590111
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00074",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6736945742461831,
+        0.32630542575381694
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00075",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8831806708176737,
+        0.11681932918232633
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00076",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9017093896808365,
+        0.09829061031916353
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00077",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9096370153823955,
+        0.09036298461760453
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00078",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.03093324139714241,
+        0.9690667586028576
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00079",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.06504297986626625,
+        0.9349570201337337
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00080",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7301127888146585,
+        0.2698872111853416
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00081",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8808665723429294,
+        0.11913342765707056
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00082",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9149687398113383,
+        0.0850312601886617
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00083",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9150704105771001,
+        0.08492958942289988
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00084",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.2505984631925821,
+        0.7494015368074178
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00085",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.896215392160957,
+        0.10378460783904302
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00086",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6873512964468682,
+        0.3126487035531318
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00087",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5121958599681966,
+        0.4878041400318034
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00088",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.16469855837523936,
+        0.8353014416247606
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00089",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4630079874396324,
+        0.5369920125603675
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00090",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.12864787593483926,
+        0.8713521240651607
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00091",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9022941209929195,
+        0.09770587900708051
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00092",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04609100833535194,
+        0.953908991664648
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00093",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9358208480800385,
+        0.06417915191996144
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00094",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9185867997028617,
+        0.08141320029713825
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00095",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7763302732736338,
+        0.2236697267263662
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00096",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8992769221886556,
+        0.10072307781134442
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00097",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.910883964113018,
+        0.08911603588698198
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00098",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9080635864882788,
+        0.09193641351172119
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00099",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.308655919036828,
+        0.691344080963172
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00100",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9160742055298579,
+        0.08392579447014213
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00101",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8693600765209248,
+        0.13063992347907516
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00102",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.07007280372083187,
+        0.9299271962791681
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00103",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7964737687353045,
+        0.20352623126469552
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00104",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7597892476248671,
+        0.24021075237513287
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00105",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5458128789928742,
+        0.4541871210071258
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00106",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9498881773096945,
+        0.05011182269030542
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00107",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.0644611044228077,
+        0.9355388955771923
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00108",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.13375754795968534,
+        0.8662424520403147
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00109",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09904203325510025,
+        0.9009579667448997
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00110",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8634465132572222,
+        0.13655348674277776
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00111",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7414926065830514,
+        0.2585073934169486
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00112",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.18999962631613015,
+        0.8100003736838698
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00113",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.2324415773153305,
+        0.7675584226846695
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00114",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.11025927852839232,
+        0.8897407214716077
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00115",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8988949351569226,
+        0.10110506484307734
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00116",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8089988251666181,
+        0.1910011748333818
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00117",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9755547433927313,
+        0.024445256607268675
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00118",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.2697628715261817,
+        0.7302371284738183
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00119",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.07873712539672852,
+        0.9212628746032715
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00120",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.9051195589581039,
+        0.09488044104189612
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00121",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8889206511568045,
+        0.11107934884319548
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00122",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7705622145428788,
+        0.2294377854571212
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00123",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.966724450706588,
+        0.03327554929341204
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00124",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.917294211921253,
+        0.082705788078747
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00125",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8822246603695385,
+        0.11777533963046154
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00126",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5405413083010353,
+        0.4594586916989647
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00127",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8997064554743701,
+        0.10029354452562984
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00128",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9094813058426371,
+        0.09051869415736291
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00129",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9702070271514822,
+        0.02979297284851782
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00130",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7770004378035082,
+        0.22299956219649175
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00131",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6028464538324624,
+        0.39715354616753756
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00132",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9616800130161665,
+        0.038319986983833584
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00133",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6739374229568057,
+        0.3260625770431943
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00134",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7386361812299583,
+        0.26136381877004167
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00135",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.14992825288325548,
+        0.8500717471167445
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00136",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8104155476065352,
+        0.18958445239346475
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00137",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8457638164155651,
+        0.15423618358443492
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00138",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9024302724981681,
+        0.09756972750183195
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00139",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.035404140204191206,
+        0.9645958597958088
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00140",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9141752212758001,
+        0.08582477872419986
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00141",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9276290242664982,
+        0.07237097573350183
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00142",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6813590086452314,
+        0.31864099135476864
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00143",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5619888242601883,
+        0.43801117573981174
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00144",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.836172453557665,
+        0.163827546442335
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00145",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.1769953916221857,
+        0.8230046083778143
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00146",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8868533603738615,
+        0.1131466396261385
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00147",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7749514095135964,
+        0.22504859048640355
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00148",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8978211188346904,
+        0.10217888116530957
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00149",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.11923903807997703,
+        0.880760961920023
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00150",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9274181394621701,
+        0.07258186053782993
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00151",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.1018903898447752,
+        0.8981096101552248
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00152",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9217095708040142,
+        0.07829042919598578
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00153",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5202148382976884,
+        0.4797851617023116
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00154",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.883439885454136,
+        0.11656011454586405
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00155",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8610375045094406,
+        0.1389624954905594
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00156",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8839298965827038,
+        0.11607010341729619
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00157",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.4707812619395554,
+        0.5292187380604446
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00158",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8745440289002727,
+        0.1254559710997273
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00159",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7171464669410489,
+        0.28285353305895117
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00160",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5767599575803615,
+        0.4232400424196385
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00161",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.627698535444215,
+        0.37230146455578506
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00162",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7795286416012095,
+        0.22047135839879048
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00163",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7915450784514542,
+        0.20845492154854584
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00164",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9070467038775678,
+        0.09295329612243222
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00165",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9113575518300059,
+        0.08864244816999417
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00166",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.4505152909597382,
+        0.5494847090402618
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00167",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9017427892924752,
+        0.09825721070752479
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00168",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.837925839857453,
+        0.16207416014254705
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00169",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7993426562190871,
+        0.20065734378091293
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00170",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8926646416386939,
+        0.10733535836130613
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00171",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.29166954558342695,
+        0.708330454416573
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00172",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.02304000973701477,
+        0.9769599902629852
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00173",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7611486104491633,
+        0.23885138955083676
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00174",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6303012289595791,
+        0.369698771040421
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00175",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8514418817486148,
+        0.14855811825138518
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00176",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6285672577936202,
+        0.3714327422063798
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00177",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7282722988416208,
+        0.2717277011583792
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00178",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.15099156532436608,
+        0.8490084346756339
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00179",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.17387039780616761,
+        0.8261296021938324
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00180",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.27508499157149346,
+        0.7249150084285065
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00181",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.08701363310217858,
+        0.9129863668978214
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00182",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.947078494411835,
+        0.05292150558816502
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00183",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8883304039519863,
+        0.11166959604801377
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00184",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.26734342623502017,
+        0.7326565737649798
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00185",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8199392566771713,
+        0.1800607433228288
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00186",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.15266277931630612,
+        0.8473372206836939
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00187",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.2624024959094822,
+        0.7375975040905177
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00188",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8862326923237379,
+        0.11376730767626214
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00189",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.05079267144203186,
+        0.9492073285579682
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00190",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.9348428621227686,
+        0.06515713787723143
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00191",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9024534920778388,
+        0.09754650792216125
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00192",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.02927550211548805,
+        0.970724497884512
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00193",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7820524825400207,
+        0.21794751745997928
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00194",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6045591347943992,
+        0.39544086520560084
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00195",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.2372756467759609,
+        0.7627243532240391
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00196",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8199090219382924,
+        0.18009097806170757
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00197",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.10850097440183162,
+        0.8914990255981684
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00198",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9338475646775624,
+        0.06615243532243767
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00199",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.11599031651159748,
+        0.8840096834884025
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00200",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.32236050435109065,
+        0.6776394956489094
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00201",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9849489277699286,
+        0.01505107223007144
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00202",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.2036904597375542,
+        0.7963095402624458
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00203",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.847532831961289,
+        0.15246716803871097
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00204",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5270162482140586,
+        0.47298375178594143
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00205",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5426453939452768,
+        0.4573546060547233
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00206",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8444882277853322,
+        0.15551177221466786
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00207",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8495715920632938,
+        0.1504284079367062
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00208",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9390882227855036,
+        0.06091177721449639
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00209",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.971442311873725,
+        0.028557688126275026
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00210",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.06566888853907585,
+        0.9343311114609242
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00211",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.13738905280828476,
+        0.8626109471917153
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00212",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8683346218033694,
+        0.13166537819663063
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00213",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9077762656296545,
+        0.09222373437034548
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00214",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7338005768274889,
+        0.26619942317251116
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00215",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.47607636332511905,
+        0.523923636674881
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00216",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8516429382498609,
+        0.1483570617501391
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00217",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.65790064736153,
+        0.34209935263847
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00218",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9083913296696119,
+        0.09160867033038812
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00219",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.061015223562717436,
+        0.9389847764372825
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00220",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7667749569751322,
+        0.23322504302486777
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00221",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.05561373993754387,
+        0.9443862600624562
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00222",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6195518886856735,
+        0.38044811131432654
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00223",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.13585743583738805,
+        0.8641425641626119
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00224",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09309211850166321,
+        0.9069078814983368
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00225",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8965227298530226,
+        0.10347727014697738
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00226",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9597073767362599,
+        0.0402926232637401
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00227",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.921011358879623,
+        0.078988641120377
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00228",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.14996962178498507,
+        0.8500303782150149
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00229",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9340613519454201,
+        0.06593864805457997
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00230",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7019486263720318,
+        0.29805137362796813
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00231",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8601877412688919,
+        0.13981225873110817
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00232",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6606041063915472,
+        0.33939589360845274
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00233",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.022731878757476807,
+        0.9772681212425232
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00234",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9656018221579507,
+        0.034398177842049335
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00235",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9662052951772239,
+        0.03379470482277611
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00236",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.08770262651145458,
+        0.9122973734885454
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00237",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.28745416264981033,
+        0.7125458373501897
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00238",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8672999306983548,
+        0.13270006930164527
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00239",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9353163191663043,
+        0.06468368083369569
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00240",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.954122419890482,
+        0.04587758010951802
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00241",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.22287314927205443,
+        0.7771268507279455
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00242",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.780746054208721,
+        0.21925394579127896
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00243",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7190344927750993,
+        0.28096550722490066
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00244",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9032987177443283,
+        0.09670128225567169
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00245",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04433759167790413,
+        0.9556624083220959
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00246",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.06258251413702964,
+        0.9374174858629704
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00247",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7372148036200088,
+        0.26278519637999126
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00248",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.14797275587916375,
+        0.8520272441208363
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00249",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.057736588716506956,
+        0.942263411283493
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00250",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9115901711940387,
+        0.0884098288059613
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00251",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.4479480868857354,
+        0.5520519131142646
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00252",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.13423679806292058,
+        0.8657632019370795
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00253",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.49939996804110703,
+        0.5006000319588929
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00254",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9649292917128333,
+        0.03507070828716678
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00255",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8951936614014266,
+        0.10480633859857334
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00256",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6530968810711056,
+        0.3469031189288944
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00257",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8943310454546008,
+        0.10566895454539918
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00258",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.3567933093465399,
+        0.6432066906534601
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00259",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6111632074136287,
+        0.3888367925863713
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00260",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7231196762062609,
+        0.27688032379373906
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00261",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8504869822703768,
+        0.14951301772962325
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00262",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04366411417722702,
+        0.956335885822773
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00263",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.08285101547837258,
+        0.9171489845216274
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00264",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9371385563918738,
+        0.06286144360812614
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00265",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6983539010083768,
+        0.30164609899162315
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00266",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7215863130264916,
+        0.27841368697350843
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00267",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8009622787393164,
+        0.19903772126068361
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00268",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9192814808571348,
+        0.08071851914286526
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00269",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5981029361870606,
+        0.40189706381293944
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00270",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.3160069933906198,
+        0.6839930066093802
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00271",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5603516539139674,
+        0.4396483460860327
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00272",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9173027422453742,
+        0.08269725775462575
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00273",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9024554940508096,
+        0.09754450594919035
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00274",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04913153171539306,
+        0.9508684682846069
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00275",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.25091618608683347,
+        0.7490838139131665
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00276",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8577573731286248,
+        0.14224262687137526
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00277",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.6868487720540725,
+        0.31315122794592753
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00278",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.051113773882389066,
+        0.948886226117611
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00279",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.18771411791443826,
+        0.8122858820855617
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00280",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.032622734010219576,
+        0.9673772659897805
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00281",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.07693340130150318,
+        0.9230665986984968
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00282",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09334098093211651,
+        0.9066590190678835
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00283",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4566822259221226,
+        0.5433177740778774
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00284",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.12118893213570119,
+        0.8788110678642989
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00285",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.9137678994030284,
+        0.08623210059697158
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00286",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.057156061679124834,
+        0.9428439383208752
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00287",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8472052354145854,
+        0.15279476458541466
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00288",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.16762564867734908,
+        0.8323743513226509
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00289",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7472517984593288,
+        0.2527482015406713
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00290",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.917668972579122,
+        0.08233102742087794
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00291",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.1868352365400642,
+        0.8131647634599358
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00292",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.10557319425046444,
+        0.8944268057495356
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00293",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.11908228702843189,
+        0.8809177129715681
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00294",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.839393810192123,
+        0.16060618980787694
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00295",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8956034891631862,
+        0.10439651083681384
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00296",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7669042701742729,
+        0.23309572982572718
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00297",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5275509975361637,
+        0.4724490024638362
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00298",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.21706128519028425,
+        0.7829387148097158
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00299",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8670700683633913,
+        0.13292993163660868
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00401",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.822817482087994,
+        0.177182517912006
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00402",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.813174008274218,
+        0.18682599172578193
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00403",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.829041567944223,
+        0.17095843205577693
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00404",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8612165132034716,
+        0.13878348679652844
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00405",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4755371178954374,
+        0.5244628821045626
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00406",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7585760679515079,
+        0.24142393204849213
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00407",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7294168320135214,
+        0.27058316798647863
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00408",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04329501941800117,
+        0.9567049805819988
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00409",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.053690818399190904,
+        0.9463091816008091
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00410",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.861519262533402,
+        0.13848073746659792
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00411",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9074304959873553,
+        0.09256950401264476
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00414",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9031007654435235,
+        0.09689923455647659
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00415",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9177943001361564,
+        0.08220569986384361
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00418",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.07070714794099331,
+        0.9292928520590067
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00419",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4667663258686662,
+        0.5332336741313338
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00421",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9461126946511831,
+        0.05388730534881688
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00423",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9387040243824595,
+        0.061295975617540535
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00424",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8989395327022794,
+        0.10106046729772061
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00425",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8987259011085552,
+        0.10127409889144473
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00426",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.050127653181552885,
+        0.9498723468184471
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00427",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09515812918543816,
+        0.9048418708145618
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00428",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6693744759680703,
+        0.3306255240319297
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00429",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8914914024394238,
+        0.10850859756057617
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00430",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04874531671404839,
+        0.9512546832859516
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00431",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04330136746168137,
+        0.9566986325383187
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00432",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5260017795488239,
+        0.4739982204511762
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00433",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09824820280075074,
+        0.9017517971992492
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00434",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9660850391314125,
+        0.033914960868587515
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00435",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8892019533553684,
+        0.11079804664463154
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00437",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.3450677792914212,
+        0.6549322207085788
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00438",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7679082676535472,
+        0.23209173234645278
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00439",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5373372842371463,
+        0.4626627157628536
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00440",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8659430351888295,
+        0.13405696481117046
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00441",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8028592526548891,
+        0.19714074734511086
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00442",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6890315363882109,
+        0.31096846361178904
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00443",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9703557968665063,
+        0.029644203133493648
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00445",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.23015168018639087,
+        0.7698483198136091
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00446",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9373271238614689,
+        0.06267287613853113
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00447",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9626743444610202,
+        0.037325655538979846
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00448",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6853092401570757,
+        0.31469075984292433
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00450",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.39090931875631213,
+        0.6090906812436878
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00451",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9281382444275369,
+        0.07186175557246316
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00452",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6652063940884545,
+        0.33479360591154544
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00453",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.06955879002809524,
+        0.9304412099719047
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00454",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9018996232986684,
+        0.0981003767013317
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00455",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9166056768567068,
+        0.08339432314329315
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00457",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.13825737938284874,
+        0.8617426206171512
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00459",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9385028518241597,
+        0.06149714817584027
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00462",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8787539936981194,
+        0.1212460063018807
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00463",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9306072292543831,
+        0.06939277074561687
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00464",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7849991635652259,
+        0.2150008364347741
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00467",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6773510818043724,
+        0.32264891819562763
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00468",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7009023522876668,
+        0.2990976477123331
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00469",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8031824981901445,
+        0.19681750180985547
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00470",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6458687550364993,
+        0.3541312449635006
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00471",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8875510914129517,
+        0.1124489085870482
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00472",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.07262217715382575,
+        0.9273778228461742
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00473",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.23043160066008567,
+        0.7695683993399143
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00474",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.11832759328186512,
+        0.8816724067181348
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00475",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4967193688149564,
+        0.5032806311850436
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00476",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9505792476603528,
+        0.04942075233964715
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00477",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6248446249682457,
+        0.3751553750317544
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00478",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6278375777741894,
+        0.3721624222258106
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00479",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8677847195123468,
+        0.13221528048765321
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00480",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.02995533525943756,
+        0.9700446647405624
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00481",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.07420763477683068,
+        0.9257923652231693
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00482",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.16304194182157516,
+        0.8369580581784248
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00483",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.056333706974983216,
+        0.9436662930250168
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00484",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7687752020487096,
+        0.2312247979512904
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00485",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.27792393206153065,
+        0.7220760679384693
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00486",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8762955127384339,
+        0.1237044872615661
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00487",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8869474971375894,
+        0.11305250286241061
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00488",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.3583115399442613,
+        0.6416884600557387
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00489",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.13850835859775543,
+        0.8614916414022445
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00491",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.32779460832476615,
+        0.6722053916752339
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00493",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.757733730688924,
+        0.24226626931107603
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00494",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6539626363490243,
+        0.34603736365097576
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00495",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.36626066913828254,
+        0.6337393308617174
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00496",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.612103172163479,
+        0.38789682783652096
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00497",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9733071928155596,
+        0.026692807184440427
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00498",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7778983565320959,
+        0.22210164346790406
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00499",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6891726676793769,
+        0.3108273323206231
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00500",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9166798266611295,
+        0.08332017333887051
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00503",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8087140175118112,
+        0.1912859824881889
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00504",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9333560668696009,
+        0.0666439331303991
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00505",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9639472169922374,
+        0.03605278300776263
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00506",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8989706868080247,
+        0.10102931319197524
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00507",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.4098348625050858,
+        0.5901651374949143
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00508",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.6574420275550801,
+        0.34255797244491987
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00509",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.828868428375863,
+        0.171131571624137
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00510",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.10320737838745117,
+        0.8967926216125488
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00511",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9277473400597228,
+        0.07225265994027723
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00513",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.786866344154696,
+        0.21313365584530403
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00516",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.10724093914031982,
+        0.8927590608596802
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00517",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5131873819325119,
+        0.4868126180674881
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00518",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8058672324228974,
+        0.19413276757710263
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00519",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.88957160463513,
+        0.11042839536487009
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00521",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.7810346468072384,
+        0.21896535319276153
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00522",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7368668709503254,
+        0.2631331290496746
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00523",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.10471659630537034,
+        0.8952834036946297
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00524",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8025875330308918,
+        0.19741246696910822
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00525",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8647861453337827,
+        0.13521385466621724
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00526",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.07054435901343822,
+        0.9294556409865617
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00527",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09459213972091675,
+        0.9054078602790833
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00529",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8263803741312585,
+        0.1736196258687414
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00530",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.0898690689355135,
+        0.9101309310644865
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00531",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.13750487294048072,
+        0.8624951270595193
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00533",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.0484810334444046,
+        0.9515189665555954
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00534",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9366793424448224,
+        0.0633206575551776
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00535",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.38901380049064754,
+        0.6109861995093524
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00536",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.5072477076540235,
+        0.49275229234597645
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00537",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.976463162778764,
+        0.023536837221236055
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00538",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.032728919237852094,
+        0.9672710807621479
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00539",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4546990313018614,
+        0.5453009686981386
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00540",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.4228371759876609,
+        0.5771628240123391
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00542",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.15930670304223896,
+        0.8406932969577611
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00543",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.027341597974300386,
+        0.9726584020256996
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00545",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.028837584108114243,
+        0.9711624158918858
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00546",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.3277378847822547,
+        0.6722621152177453
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00551",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.0754926161468029,
+        0.9245073838531971
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00552",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.08054037988185883,
+        0.9194596201181412
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00553",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.46465343998745084,
+        0.5353465600125492
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00555",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9214312275475822,
+        0.07856877245241776
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00556",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.03741313472390175,
+        0.9625868652760983
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00557",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8492481315838085,
+        0.15075186841619143
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00558",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.09954083293676376,
+        0.9004591670632363
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00559",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.87083136847883,
+        0.12916863152117003
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00560",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.31868565718643366,
+        0.6813143428135663
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00563",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7063300901069306,
+        0.2936699098930694
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00564",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9542405604584565,
+        0.045759439541543545
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00565",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.04437901839613914,
+        0.9556209816038609
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00567",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5158007045589329,
+        0.4841992954410671
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00568",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.06169620931148529,
+        0.9383037906885147
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00569",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9415695884405432,
+        0.058430411559456844
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00570",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.952244506948773,
+        0.04775549305122695
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00571",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.22164617359638214,
+        0.7783538264036178
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00572",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.09316416673362254,
+        0.9068358332663774
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00573",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.14904146894812584,
+        0.8509585310518741
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00574",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9437537984218216,
+        0.056246201578178445
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00575",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.8219594695855631,
+        0.17804053041443693
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00576",
+      "label": 1,
+      "pred": 1,
+      "pred_probs": [
+        0.17882054578512907,
+        0.8211794542148709
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00577",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.16400635294616223,
+        0.8359936470538378
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00579",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.93877529629528,
+        0.06122470370472002
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00580",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.7536892081738915,
+        0.24631079182610846
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00581",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.865970750216511,
+        0.13402924978348893
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00582",
+      "label": 0,
+      "pred": 1,
+      "pred_probs": [
+        0.10589280128479003,
+        0.8941071987152099
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00583",
+      "label": 1,
+      "pred": 0,
+      "pred_probs": [
+        0.5062223823240493,
+        0.49377761767595074
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00584",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8100770561513491,
+        0.1899229438486509
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00585",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.9410073350194267,
+        0.058992664980573296
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00586",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8450498791481368,
+        0.1549501208518632
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00587",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8597152555439971,
+        0.14028474445600295
+      ],
+      "n_ensembled": 25
+    },
+    {
+      "case_id": "case_00588",
+      "label": 0,
+      "pred": 0,
+      "pred_probs": [
+        0.8716978746725362,
+        0.12830212532746374
+      ],
+      "n_ensembled": 25
+    }
+  ],
+  "metrics": {
+    "n": 452,
+    "n_pos": 177,
+    "n_neg": 275,
+    "prevalence": 0.3915929203539823,
+    "tp": 129,
+    "tn": 244,
+    "fp": 31,
+    "fn": 48,
+    "acc": 0.8252212389380531,
+    "prec": 0.80625,
+    "rec": 0.7288135593220338,
+    "spec": 0.8872727272727273,
+    "npv": 0.8356164383561644,
+    "f1": 0.7655786350148368,
+    "balanced_acc": 0.8080431432973806,
+    "auc": 0.8976271186440677,
+    "log_loss": 0.398215660399808,
+    "brier": 0.12628388698133577
+  }
+}
