@@ -10,7 +10,7 @@ __pycache__
 .cache
 local-runs
 pnvrn_folds
-dev/axis_local_env.sh
+dev/clarity_local_env.sh
 tests
 *.pyc
 *.pyo

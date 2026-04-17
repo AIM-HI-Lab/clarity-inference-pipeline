@@ -35,7 +35,7 @@ class TotalSegmentatorConfig:
 class TumorSegmentationConfig:
     """Settings for tumor segmentation (external CLI or script)."""
 
-    binary: str = "axis-nnunet-predict"
+    binary: str = "clarity-nnunet-predict"
     mode: str = "nnunetv1"
     task_id: str = "135"
     model: str = "3d_cascade_fullres"
@@ -63,7 +63,7 @@ class PhaseGatingConfig:
 
 @dataclass(frozen=True)
 class MaskAdaptationConfig:
-    """Resampling / label fusion for masks before downstream axis-pn."""
+    """Resampling / label fusion for masks before downstream CLARITY inference."""
 
     reference_image: Path | None = None
     """If set, masks are adapted to this image grid."""
@@ -107,7 +107,7 @@ class PipelineConfig:
     # When True, skip DICOM→NIfTI, TotalSegmentator, and tumor if those outputs already exist under the workspace.
     reuse_cached_artifacts: bool = False
     # When False, mask adaptation with no SWP label-2 voxels raises. When True, the run continues,
-    # that case is omitted from swp_manifest.json, and axis-pn runs only on remaining cases.
+    # that case is omitted from swp_manifest.json, and CLARITY runs only on remaining cases.
     continue_on_empty_tumor: bool = True
     dicom_backend: str = "dcm2niix"
     """``dcm2niix`` (external CLI) or ``sitk`` (SimpleITK / GDCM in-process)."""

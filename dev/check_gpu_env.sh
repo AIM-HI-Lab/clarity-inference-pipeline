@@ -46,7 +46,7 @@ if torch.version.cuda is None:
     print(">>>   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu124")
     print(">>> Fallback (older drivers):")
     print(">>>   .venv/bin/pip install -U torch torchvision --index-url https://download.pytorch.org/whl/cu118")
-    print(">>> Then re-run dev/slurm_gpu_kits.job or axis-pn on a GPU node.")
+    print(">>> Then re-run dev/slurm_gpu_kits.job or clarity-pipeline on a GPU node.")
     raise SystemExit(0)
 
 if torch.cuda.is_available():

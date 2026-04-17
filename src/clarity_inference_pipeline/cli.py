@@ -1,4 +1,4 @@
-"""CLI entrypoint: ``axis-pn predict`` and related commands."""
+"""CLI entrypoint: ``clarity-pipeline predict`` and related commands."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from .pipeline import build_pipeline_config, run_pipeline
 from .pipeline_profile import resolve_totalsegmentator_extra_args, resolve_tumor_extra_args
 
 app = typer.Typer(
-    name="axis-pn",
-    help="DICOM-to-axis-pn inference pipeline (orchestration and external model wrappers).",
+    name="clarity-pipeline",
+    help="DICOM-to-CLARITY inference pipeline (orchestration and external model wrappers).",
     no_args_is_help=True,
 )
 
@@ -30,7 +30,7 @@ DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[2] / "pnvrn_folds"
 
 @app.callback()
 def _root() -> None:
-    """Axis PN pipeline CLI."""
+    """CLARITY inference pipeline CLI."""
 
 
 @app.command("predict")
@@ -77,7 +77,7 @@ def predict(
         str,
         typer.Option(
             "--dicom-backend",
-            help="DICOM→NIfTI: dcm2niix (external), sitk (SimpleITK/GDCM), or auto (try dcm2niix then sitk). Env AXIS_DICOM_BACKEND overrides.",
+            help="DICOM→NIfTI: dcm2niix (external), sitk (SimpleITK/GDCM), or auto (try dcm2niix then sitk). Env CLARITY_DICOM_BACKEND overrides.",
         ),
     ] = "auto",
     totalseg_binary: Annotated[
@@ -92,16 +92,16 @@ def predict(
         Optional[str],
         typer.Option(
             "--totalseg-extra",
-            help='Extra TotalSegmentator arguments (shell-style); else AXIS_TOTALSEG_EXTRA.',
+            help='Extra TotalSegmentator arguments (shell-style); else CLARITY_TOTALSEG_EXTRA.',
         ),
     ] = None,
     tumor_binary: Annotated[
         str,
         typer.Option(
             "--tumor-binary",
-            help="Tumor CLI (default: axis-nnunet-predict for nnunetv1 — PyTorch 2.6+ safe nnU-Net v1).",
+            help="Tumor CLI (default: clarity-nnunet-predict for nnunetv1 — PyTorch 2.6+ safe nnU-Net v1).",
         ),
-    ] = "axis-nnunet-predict",
+    ] = "clarity-nnunet-predict",
     tumor_mode: Annotated[
         str,
         typer.Option("--tumor-mode", help="Tumor segmentation wrapper mode: nnunetv1, nnunetv2, or simple."),
@@ -126,7 +126,7 @@ def predict(
         Optional[str],
         typer.Option(
             "--tumor-extra",
-            help='Extra tumor-segmentation CLI args (shell-style); else AXIS_TUMOR_EXTRA.',
+            help='Extra tumor-segmentation CLI args (shell-style); else CLARITY_TUMOR_EXTRA.',
         ),
     ] = None,
     checkpoint_dir: Annotated[
@@ -136,7 +136,7 @@ def predict(
             "--weights-dir",
             exists=True,
             file_okay=False,
-            help="Directory containing axis-pn .pth checkpoints.",
+            help="Directory containing CLARITY (PNvsRN) .pth checkpoints.",
         ),
     ] = None,
     checkpoint_dir_recursive: Annotated[
@@ -201,11 +201,11 @@ def predict(
         typer.Option(
             "--fail-on-empty-tumor",
             help="Stop the run if tumor segmentation is empty (no SWP label 2). "
-            "Default is to continue and skip axis-pn for that case only.",
+            "Default is to continue and skip CLARITY inference for that case only.",
         ),
     ] = False,
 ) -> None:
-    """Run the full DICOM → axis-pn pipeline (DICOM ingest, segmentation, optional gating)."""
+    """Run the full DICOM → CLARITY pipeline (DICOM ingest, segmentation, optional gating)."""
 
     if enable_phase_gating and not phase_entrypoint:
         raise typer.BadParameter("--phase-entrypoint is required when --enable-phase-gating is set.")
@@ -252,7 +252,7 @@ def predict(
             "Provide --checkpoint-path, --checkpoint-dir, or --model-root unless --skip-inference is set."
         )
 
-    effective_dicom_backend = (os.environ.get("AXIS_DICOM_BACKEND") or "").strip() or dicom_backend
+    effective_dicom_backend = (os.environ.get("CLARITY_DICOM_BACKEND") or "").strip() or dicom_backend
     try:
         dicom_resolved = resolve_dicom_backend(effective_dicom_backend, dcm2niix)
     except (RuntimeError, ValueError) as e:

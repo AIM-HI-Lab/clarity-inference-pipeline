@@ -14,12 +14,12 @@ def resolve_totalsegmentator_extra_args(*, cli_extra: Optional[str]) -> tuple[st
     Precedence:
 
     1. ``--totalseg-extra`` (``cli_extra``)
-    2. ``AXIS_TOTALSEG_EXTRA`` environment (shell-style)
+    2. ``CLARITY_TOTALSEG_EXTRA`` environment (shell-style)
     """
 
     if cli_extra:
         return tuple(shlex.split(cli_extra))
-    env = os.environ.get("AXIS_TOTALSEG_EXTRA", "").strip()
+    env = os.environ.get("CLARITY_TOTALSEG_EXTRA", "").strip()
     if env:
         return tuple(shlex.split(env))
     return ()
@@ -32,12 +32,12 @@ def resolve_tumor_extra_args(*, cli_extra: Optional[str]) -> tuple[str, ...]:
     Precedence:
 
     1. ``--tumor-extra`` (``cli_extra``)
-    2. ``AXIS_TUMOR_EXTRA`` environment (shell-style)
+    2. ``CLARITY_TUMOR_EXTRA`` environment (shell-style)
     """
 
     if cli_extra:
         return tuple(shlex.split(cli_extra))
-    env = os.environ.get("AXIS_TUMOR_EXTRA", "").strip()
+    env = os.environ.get("CLARITY_TUMOR_EXTRA", "").strip()
     if env:
         return tuple(shlex.split(env))
     return ()

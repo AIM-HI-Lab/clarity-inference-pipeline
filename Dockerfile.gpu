@@ -1,6 +1,6 @@
 # NVIDIA GPU image: PyTorch with CUDA is preinstalled; avoid overwriting with CPU wheels from pip.
-# Build: docker build -f Dockerfile.gpu -t axis-inference-pipeline:gpu .
-# Run:  docker run --gpus all ... axis-inference-pipeline:gpu predict --device cuda ...
+# Build: docker build -f Dockerfile.gpu -t clarity-inference-pipeline:gpu .
+# Run:  docker run --gpus all ... clarity-inference-pipeline:gpu predict --device cuda ...
 FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
 ENV PYTHONUNBUFFERED=1 \
@@ -44,7 +44,7 @@ RUN curl -fsSL -o /tmp/Task135_KiTS2021.zip "https://zenodo.org/records/5126443/
     nnUNet_install_pretrained_model_from_zip /tmp/Task135_KiTS2021.zip && \
     rm -f /tmp/Task135_KiTS2021.zip
 
-LABEL org.opencontainers.image.title="axis-inference-pipeline-gpu"
+LABEL org.opencontainers.image.title="clarity-inference-pipeline-gpu"
 
-# axis-pn predict: default TotalSegmentator total task unless overridden via --totalseg-extra / AXIS_TOTALSEG_EXTRA.
+# clarity-pipeline predict: default TotalSegmentator total task unless overridden via --totalseg-extra / CLARITY_TOTALSEG_EXTRA.
 ENTRYPOINT ["/docker-entrypoint.sh"]

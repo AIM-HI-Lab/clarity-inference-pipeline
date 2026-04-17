@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # Fresh clone / HPC workflow (recommended):
 #   module load python/gpu/3.10.6    # example — your site's GPU Python + CUDA paths
-#   cd axis-inference-pipeline
-#   export AXIS_PYTHON="$(command -v python3.10 2>/dev/null || command -v python3)"
+#   cd clarity-inference-pipeline
+#   export CLARITY_PYTHON="$(command -v python3.10 2>/dev/null || command -v python3)"
 #   ./dev/setup_local_models.sh
 #
 # PyTorch is installed from PyTorch's CUDA wheel index *before* `pip install -e .` so the
 # dependency resolver does not leave you on a `+cpu` build, then installed again *after* to
 # overwrite any replacement from PyPI.
 #
-# AXIS_PYTORCH_CUDA=auto|cpu|cu118|cu121|cu124|skip
+# CLARITY_PYTORCH_CUDA=auto|cpu|cu118|cu121|cu124|skip
 #   auto — nvidia-smi "CUDA Version"; Linux + no nvidia-smi → cu118
 #
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AXIS_PYTHON="${AXIS_PYTHON:-python3.10}"
-if ! command -v "${AXIS_PYTHON}" >/dev/null 2>&1; then
-  echo "Python interpreter not found: ${AXIS_PYTHON}" >&2
+CLARITY_PYTHON="${CLARITY_PYTHON:-python3.10}"
+if ! command -v "${CLARITY_PYTHON}" >/dev/null 2>&1; then
+  echo "Python interpreter not found: ${CLARITY_PYTHON}" >&2
   echo "Load your module first, e.g. module load python/gpu/3.10.6" >&2
-  echo "Then: export AXIS_PYTHON=\"\$(command -v python3.10)\"" >&2
+  echo "Then: export CLARITY_PYTHON=\"\$(command -v python3.10)\"" >&2
   exit 1
 fi
 VENV_DIR="${REPO_ROOT}/.venv"
@@ -34,25 +34,25 @@ mkdir -p "${NNUNET_V1_ROOT}/raw" "${NNUNET_V1_ROOT}/preprocessed" "${NNUNET_V1_R
 mkdir -p "${NNUNET_V2_ROOT}/raw" "${NNUNET_V2_ROOT}/preprocessed" "${NNUNET_V2_ROOT}/results"
 mkdir -p "${TOTALSEG_ROOT}"
 
-cat > "${REPO_ROOT}/dev/axis_local_env.sh" <<EOF
+cat > "${REPO_ROOT}/dev/clarity_local_env.sh" <<EOF
 #!/usr/bin/env bash
-export AXIS_NNUNET_V1_RAW="${NNUNET_V1_ROOT}/raw"
-export AXIS_NNUNET_V1_PREPROCESSED="${NNUNET_V1_ROOT}/preprocessed"
-export AXIS_NNUNET_V1_RESULTS="${NNUNET_V1_ROOT}/results"
-export AXIS_NNUNET_V2_RAW="${NNUNET_V2_ROOT}/raw"
-export AXIS_NNUNET_V2_PREPROCESSED="${NNUNET_V2_ROOT}/preprocessed"
-export AXIS_NNUNET_V2_RESULTS="${NNUNET_V2_ROOT}/results"
+export CLARITY_NNUNET_V1_RAW="${NNUNET_V1_ROOT}/raw"
+export CLARITY_NNUNET_V1_PREPROCESSED="${NNUNET_V1_ROOT}/preprocessed"
+export CLARITY_NNUNET_V1_RESULTS="${NNUNET_V1_ROOT}/results"
+export CLARITY_NNUNET_V2_RAW="${NNUNET_V2_ROOT}/raw"
+export CLARITY_NNUNET_V2_PREPROCESSED="${NNUNET_V2_ROOT}/preprocessed"
+export CLARITY_NNUNET_V2_RESULTS="${NNUNET_V2_ROOT}/results"
 export TOTALSEG_HOME_DIR="${TOTALSEG_ROOT}"
 EOF
-chmod +x "${REPO_ROOT}/dev/axis_local_env.sh"
+chmod +x "${REPO_ROOT}/dev/clarity_local_env.sh"
 
 if [[ ! -x "${PYTHON_BIN}" ]]; then
-  "${AXIS_PYTHON}" -m venv "${VENV_DIR}"
+  "${CLARITY_PYTHON}" -m venv "${VENV_DIR}"
 fi
 
 "${PIP_BIN}" install --upgrade pip "setuptools<82" wheel
 
-AXIS_PYTORCH_CUDA="${AXIS_PYTORCH_CUDA:-auto}"
+CLARITY_PYTORCH_CUDA="${CLARITY_PYTORCH_CUDA:-auto}"
 TORCH_VARIANT=""
 
 _install_torch_wheels() {
@@ -77,8 +77,8 @@ _install_torch_wheels() {
   esac
 }
 
-if [[ "${AXIS_PYTORCH_CUDA}" != "skip" ]]; then
-  if [[ "${AXIS_PYTORCH_CUDA}" == "auto" ]]; then
+if [[ "${CLARITY_PYTORCH_CUDA}" != "skip" ]]; then
+  if [[ "${CLARITY_PYTORCH_CUDA}" == "auto" ]]; then
     TORCH_VARIANT="$("${PYTHON_BIN}" - <<'PY'
 import re
 import subprocess
@@ -110,30 +110,30 @@ if __name__ == "__main__":
 PY
 )"
   else
-    TORCH_VARIANT="${AXIS_PYTORCH_CUDA}"
+    TORCH_VARIANT="${CLARITY_PYTORCH_CUDA}"
   fi
-  echo "AXIS_PYTORCH_CUDA (resolved)=${TORCH_VARIANT}"
+  echo "CLARITY_PYTORCH_CUDA (resolved)=${TORCH_VARIANT}"
   echo "Installing torch/torchvision (${TORCH_VARIANT}) before editable install…"
   _install_torch_wheels "${TORCH_VARIANT}"
 fi
 
-echo "Installing axis-inference-pipeline (editable)…"
+echo "Installing clarity-inference-pipeline (editable)…"
 "${PIP_BIN}" install -e .
 
-if [[ "${AXIS_PYTORCH_CUDA}" != "skip" ]]; then
+if [[ "${CLARITY_PYTORCH_CUDA}" != "skip" ]]; then
   echo "Re-installing torch/torchvision (${TORCH_VARIANT}) after editable install (prevents +cpu from PyPI)…"
   _install_torch_wheels "${TORCH_VARIANT}"
 fi
 
 "${PIP_BIN}" install TotalSegmentator nnunetv2 nnunet
 
-source "${REPO_ROOT}/dev/axis_local_env.sh"
+source "${REPO_ROOT}/dev/clarity_local_env.sh"
 export PATH="${VENV_DIR}/bin:${PATH}"
-export nnUNet_raw_data_base="${AXIS_NNUNET_V1_RAW}"
-export nnUNet_preprocessed="${AXIS_NNUNET_V1_PREPROCESSED}"
-export RESULTS_FOLDER="${AXIS_NNUNET_V1_RESULTS}"
-export nnUNet_raw="${AXIS_NNUNET_V2_RAW}"
-export nnUNet_results="${AXIS_NNUNET_V2_RESULTS}"
+export nnUNet_raw_data_base="${CLARITY_NNUNET_V1_RAW}"
+export nnUNet_preprocessed="${CLARITY_NNUNET_V1_PREPROCESSED}"
+export RESULTS_FOLDER="${CLARITY_NNUNET_V1_RESULTS}"
+export nnUNet_raw="${CLARITY_NNUNET_V2_RAW}"
+export nnUNet_results="${CLARITY_NNUNET_V2_RESULTS}"
 
 totalseg_download_weights -t total || true
 
@@ -156,9 +156,9 @@ nnUNet_install_pretrained_model_from_zip "${MODEL_ZIP}"
 
 echo
 echo "Setup complete."
-echo "Python: ${AXIS_PYTHON} → ${VENV_DIR}"
-echo "Environment file: ${REPO_ROOT}/dev/axis_local_env.sh"
-echo "Legacy KiTS model root: ${AXIS_NNUNET_V1_RESULTS}"
+echo "Python: ${CLARITY_PYTHON} → ${VENV_DIR}"
+echo "Environment file: ${REPO_ROOT}/dev/clarity_local_env.sh"
+echo "Legacy KiTS model root: ${CLARITY_NNUNET_V1_RESULTS}"
 echo "TotalSegmentator cache: ${TOTALSEG_HOME_DIR}"
 echo
 export TORCH_VARIANT="${TORCH_VARIANT:-}"

@@ -5,20 +5,20 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV_DIR="${AXIS_VENV_DIR:-${REPO_ROOT}/.venv}"
+VENV_DIR="${CLARITY_VENV_DIR:-${REPO_ROOT}/.venv}"
 VENV_PYTHON="${VENV_DIR}/bin/python"
-AXIS_BIN="${VENV_DIR}/bin/axis-pn"
-ENV_FILE="${REPO_ROOT}/dev/axis_local_env.sh"
+CLARITY_BIN="${VENV_DIR}/bin/clarity-pipeline"
+ENV_FILE="${REPO_ROOT}/dev/clarity_local_env.sh"
 
-# Default: example tree from C4KC / KiTS; override with AXIS_DICOM_CASES_ROOT for your data.
+# Default: example tree from C4KC / KiTS; override with CLARITY_DICOM_CASES_ROOT for your data.
 DICOM_CASES_ROOT_DEFAULT="${HOME}/Desktop/kits_data/C4KC-KiTS-NBIA-manifest (1)/c4kc_kits"
 WEIGHTS_DIR_DEFAULT="${REPO_ROOT}/pnvrn_folds"
 WORK_ROOT_DEFAULT="${REPO_ROOT}/local-runs"
 DEVICE_DEFAULT="cpu"
 
-if [[ ! -x "${AXIS_BIN}" ]]; then
-  echo "Missing ${AXIS_BIN}."
-  echo "Create the env first (default interpreter is python3.10; set AXIS_PYTHON if needed):"
+if [[ ! -x "${CLARITY_BIN}" ]]; then
+  echo "Missing ${CLARITY_BIN}."
+  echo "Create the env first (default interpreter is python3.10; set CLARITY_PYTHON if needed):"
   echo "  ./dev/setup_local_models.sh"
   exit 1
 fi
@@ -33,43 +33,43 @@ if [[ -f "${ENV_FILE}" ]]; then
   source "${ENV_FILE}"
 fi
 
-if [[ -n "${AXIS_NNUNET_V1_RAW:-}" ]]; then
-  export nnUNet_raw_data_base="${AXIS_NNUNET_V1_RAW}"
+if [[ -n "${CLARITY_NNUNET_V1_RAW:-}" ]]; then
+  export nnUNet_raw_data_base="${CLARITY_NNUNET_V1_RAW}"
 fi
-if [[ -n "${AXIS_NNUNET_V1_PREPROCESSED:-}" ]]; then
-  export nnUNet_preprocessed="${AXIS_NNUNET_V1_PREPROCESSED}"
+if [[ -n "${CLARITY_NNUNET_V1_PREPROCESSED:-}" ]]; then
+  export nnUNet_preprocessed="${CLARITY_NNUNET_V1_PREPROCESSED}"
 fi
-if [[ -n "${AXIS_NNUNET_V1_RESULTS:-}" ]]; then
-  export RESULTS_FOLDER="${AXIS_NNUNET_V1_RESULTS}"
+if [[ -n "${CLARITY_NNUNET_V1_RESULTS:-}" ]]; then
+  export RESULTS_FOLDER="${CLARITY_NNUNET_V1_RESULTS}"
 fi
-if [[ -n "${AXIS_NNUNET_V2_RAW:-}" ]]; then
-  export nnUNet_raw="${AXIS_NNUNET_V2_RAW}"
+if [[ -n "${CLARITY_NNUNET_V2_RAW:-}" ]]; then
+  export nnUNet_raw="${CLARITY_NNUNET_V2_RAW}"
 fi
-if [[ -n "${AXIS_NNUNET_V2_RESULTS:-}" ]]; then
-  export nnUNet_results="${AXIS_NNUNET_V2_RESULTS}"
+if [[ -n "${CLARITY_NNUNET_V2_RESULTS:-}" ]]; then
+  export nnUNet_results="${CLARITY_NNUNET_V2_RESULTS}"
 fi
 
 # nnU-Net spills large predictions to $TMPDIR; on Slurm, node-local temp avoids slow BeeGFS.
 if [[ -n "${SLURM_TMPDIR:-}" ]]; then
   export TMPDIR="${TMPDIR:-${SLURM_TMPDIR}}"
 fi
-# Faster nnU-Net v1 tumor inference: disable test-time augmentation unless AXIS_TUMOR_EXTRA is set
+# Faster nnU-Net v1 tumor inference: disable test-time augmentation unless CLARITY_TUMOR_EXTRA is set
 # (including to empty, to keep default nnU-Net TTA).
-if [ -z "${AXIS_TUMOR_EXTRA+x}" ]; then
-  export AXIS_TUMOR_EXTRA="--disable_tta"
+if [ -z "${CLARITY_TUMOR_EXTRA+x}" ]; then
+  export CLARITY_TUMOR_EXTRA="--disable_tta"
 fi
 
 # Parent directory: each immediate subdirectory is one case/patient (any name).
-# AXIS_KITS_ROOT is a deprecated alias for AXIS_DICOM_CASES_ROOT.
+# CLARITY_KITS_ROOT is a deprecated alias for CLARITY_DICOM_CASES_ROOT.
 REQUEST="${1:-ALL}"
-DEVICE="${AXIS_DEVICE:-$DEVICE_DEFAULT}"
-DICOM_CASES_ROOT="${AXIS_DICOM_CASES_ROOT:-${AXIS_KITS_ROOT:-$DICOM_CASES_ROOT_DEFAULT}}"
-WEIGHTS_DIR="${AXIS_WEIGHTS_DIR:-$WEIGHTS_DIR_DEFAULT}"
-WORK_ROOT="${AXIS_WORK_ROOT:-$WORK_ROOT_DEFAULT}"
+DEVICE="${CLARITY_DEVICE:-$DEVICE_DEFAULT}"
+DICOM_CASES_ROOT="${CLARITY_DICOM_CASES_ROOT:-${CLARITY_KITS_ROOT:-$DICOM_CASES_ROOT_DEFAULT}}"
+WEIGHTS_DIR="${CLARITY_WEIGHTS_DIR:-$WEIGHTS_DIR_DEFAULT}"
+WORK_ROOT="${CLARITY_WORK_ROOT:-$WORK_ROOT_DEFAULT}"
 
 if [[ ! -d "${DICOM_CASES_ROOT}" ]]; then
   echo "DICOM cases root not found: ${DICOM_CASES_ROOT}"
-  echo "Set AXIS_DICOM_CASES_ROOT to the parent of your per-patient folders."
+  echo "Set CLARITY_DICOM_CASES_ROOT to the parent of your per-patient folders."
   exit 1
 fi
 
@@ -87,7 +87,7 @@ fi
 
 run_one_case() {
   local CASE_NAME="$1"
-  local RUN_NAME="${AXIS_RUN_NAME:-${CASE_NAME}}"
+  local RUN_NAME="${CLARITY_RUN_NAME:-${CASE_NAME}}"
   local WORK_DIR="${WORK_ROOT}/${RUN_NAME}"
 
   if [[ ! -d "${DICOM_CASES_ROOT}/${CASE_NAME}" ]]; then
@@ -154,7 +154,7 @@ PY
 
   mkdir -p "${WORK_ROOT}"
 
-  echo "Running axis-pn"
+  echo "Running clarity-pipeline"
   echo "  case: ${CASE_NAME}"
   echo "  series: ${SERIES_DIR}"
   echo "  work dir: ${WORK_DIR}"
@@ -162,19 +162,19 @@ PY
   echo "  device: ${DEVICE}"
   echo "  tumor backend: nnUNet v1 Task135 (public KiTS21-pretrained checkpoint)"
 
-  # Set AXIS_REUSE_CACHED=1 to skip DICOM/TotalSegmentator/tumor when outputs already exist under WORK_DIR (faster iteration on SWP inference).
+  # Set CLARITY_REUSE_CACHED=1 to skip DICOM/TotalSegmentator/tumor when outputs already exist under WORK_DIR (faster iteration on SWP inference).
   #
   # If macOS shows "Python quit unexpectedly" during TotalSegmentator, stderr lines like
   # MallocStackLogging are usually harmless. The crash is often memory pressure on large CTs.
   # Optional: add --force_split for huge volumes only (can break small/cropped scans):
-  #   export AXIS_TOTALSEG_EXTRA="-fs -nr 2 -ns 2"
+  #   export CLARITY_TOTALSEG_EXTRA="-fs -nr 2 -ns 2"
   #
-  # DICOM→NIfTI: default --dicom-backend auto (dcm2niix if on PATH, else SimpleITK). Set AXIS_DICOM_BACKEND=sitk to force in-process conversion without dcm2niix.
+  # DICOM→NIfTI: default --dicom-backend auto (dcm2niix if on PATH, else SimpleITK). Set CLARITY_DICOM_BACKEND=sitk to force in-process conversion without dcm2niix.
   #
   # Build one argv array so we never expand an empty array under `set -u`.
-  local _db="${AXIS_DICOM_BACKEND:-auto}"
-  local -a AXIS_PREDICT_CMD=(
-    "${AXIS_BIN}" predict
+  local _db="${CLARITY_DICOM_BACKEND:-auto}"
+  local -a CLARITY_PREDICT_CMD=(
+    "${CLARITY_BIN}" predict
     --input "${SERIES_DIR}"
     --work-dir "${WORK_DIR}"
     --weights-dir "${WEIGHTS_DIR}"
@@ -184,26 +184,26 @@ PY
     --device "${DEVICE}"
     --dicom-backend "${_db}"
   )
-  if [[ -n "${AXIS_DCM2NIIX:-}" ]]; then
-    AXIS_PREDICT_CMD+=(--dcm2niix "${AXIS_DCM2NIIX}")
+  if [[ -n "${CLARITY_DCM2NIIX:-}" ]]; then
+    CLARITY_PREDICT_CMD+=(--dcm2niix "${CLARITY_DCM2NIIX}")
   elif [[ "${_db}" == "dcm2niix" ]] && ! command -v dcm2niix >/dev/null 2>&1; then
-    echo "dcm2niix not on PATH and AXIS_DCM2NIIX not set; use --dicom-backend auto (default) or sitk." >&2
+    echo "dcm2niix not on PATH and CLARITY_DCM2NIIX not set; use --dicom-backend auto (default) or sitk." >&2
     return 1
   fi
-  if [[ -n "${AXIS_TOTALSEG_EXTRA:-}" ]]; then
-    AXIS_PREDICT_CMD+=(--totalseg-extra "${AXIS_TOTALSEG_EXTRA}")
+  if [[ -n "${CLARITY_TOTALSEG_EXTRA:-}" ]]; then
+    CLARITY_PREDICT_CMD+=(--totalseg-extra "${CLARITY_TOTALSEG_EXTRA}")
   fi
-  if [[ -n "${AXIS_TUMOR_EXTRA:-}" ]]; then
-    AXIS_PREDICT_CMD+=(--tumor-extra "${AXIS_TUMOR_EXTRA}")
+  if [[ -n "${CLARITY_TUMOR_EXTRA:-}" ]]; then
+    CLARITY_PREDICT_CMD+=(--tumor-extra "${CLARITY_TUMOR_EXTRA}")
   fi
-  if [[ "${AXIS_REUSE_CACHED:-0}" == "1" ]]; then
-    AXIS_PREDICT_CMD+=(--reuse-cached-artifacts)
+  if [[ "${CLARITY_REUSE_CACHED:-0}" == "1" ]]; then
+    CLARITY_PREDICT_CMD+=(--reuse-cached-artifacts)
   fi
-  if [[ "${AXIS_FAIL_ON_EMPTY_TUMOR:-0}" == "1" ]]; then
-    AXIS_PREDICT_CMD+=(--fail-on-empty-tumor)
+  if [[ "${CLARITY_FAIL_ON_EMPTY_TUMOR:-0}" == "1" ]]; then
+    CLARITY_PREDICT_CMD+=(--fail-on-empty-tumor)
   fi
 
-  PATH="${VENV_DIR}/bin:${PATH}" "${AXIS_PREDICT_CMD[@]}"
+  PATH="${VENV_DIR}/bin:${PATH}" "${CLARITY_PREDICT_CMD[@]}"
 
   echo
   echo "Done: ${CASE_NAME}"
@@ -241,7 +241,7 @@ run_all_cases_under_root() {
   for c in "${names[@]}"; do
     echo ""
     echo "========== ${c} =========="
-    unset AXIS_RUN_NAME || true
+    unset CLARITY_RUN_NAME || true
     run_one_case "${c}"
   done
   echo ""

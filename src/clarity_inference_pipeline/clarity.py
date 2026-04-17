@@ -37,7 +37,7 @@ def _temporary_env(env: dict[str, str]) -> Iterator[None]:
                 os.environ[key] = previous
 
 
-def run_axis_pn_inference(
+def run_clarity_inference(
     *,
     manifest_path: Path,
     data_root: Path,
@@ -70,7 +70,7 @@ def run_axis_pn_inference(
         _prev = ", ".join(c.name for c in ckpts[:5])
         _more = f" (+{len(ckpts) - 5} more)" if len(ckpts) > 5 else ""
         print(
-            f"[axis-pn] SWP inference: {len(ckpts)} checkpoint(s): {_prev}{_more}",
+            f"[clarity-pipeline] SWP inference: {len(ckpts)} checkpoint(s): {_prev}{_more}",
             file=sys.stderr,
             flush=True,
         )
@@ -79,8 +79,8 @@ def run_axis_pn_inference(
             and len(ckpts) != config.expected_checkpoint_count
         ):
             raise ValueError(
-                f"Expected {config.expected_checkpoint_count} checkpoints for axis-pn inference, "
-                f"found {len(ckpts)}."
+                f"Expected {config.expected_checkpoint_count} checkpoints for CLARITY (SWP) "
+                f"inference, found {len(ckpts)}."
             )
         training_inputs_json = {
             "manifest": str(manifest_path.expanduser().resolve()),
@@ -100,7 +100,7 @@ def run_axis_pn_inference(
                 net,
                 dataset,
                 project_class,
-                desc=f"axis-pn | {ckpt.name}",
+                desc=f"clarity-pipeline | {ckpt.name}",
             )
             fold_case_tables.append(val_rows)
 

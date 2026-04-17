@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Run axis-pn inside Docker (build the image first: docker build -t axis-inference-pipeline:local .)
+# Run clarity-pipeline inside Docker (build the image first: docker build -t clarity-inference-pipeline:local .)
 #
 # Usage:
-#   ./dev/docker-predict.sh /path/to/dicom [output_dir [weights_dir]] [-- extra axis-pn args...]
+#   ./dev/docker-predict.sh /path/to/dicom [output_dir [weights_dir]] [-- extra clarity-pipeline args...]
 #
 # Env:
-#   AXIS_DOCKER_IMAGE   (default axis-inference-pipeline:local; use axis-inference-pipeline:gpu for GPU image)
-#   AXIS_DOCKER_GPU=1   add --gpus all
-#   AXIS_DEVICE=cuda|cpu
+#   CLARITY_DOCKER_IMAGE   (default clarity-inference-pipeline:local; use clarity-inference-pipeline:gpu for GPU image)
+#   CLARITY_DOCKER_GPU=1   add --gpus all
+#   CLARITY_DEVICE=cuda|cpu
 #
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${AXIS_DOCKER_IMAGE:-axis-inference-pipeline:local}"
-DEVICE="${AXIS_DEVICE:-cpu}"
+IMAGE="${CLARITY_DOCKER_IMAGE:-clarity-inference-pipeline:local}"
+DEVICE="${CLARITY_DEVICE:-cpu}"
 
 ALL=("$@")
 SEP=-1
@@ -33,7 +33,7 @@ fi
 set -- "${BEFORE[@]}"
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 /path/to/dicom [output_dir [weights_dir]] [-- extra axis-pn args...]" >&2
+  echo "Usage: $0 /path/to/dicom [output_dir [weights_dir]] [-- extra clarity-pipeline args...]" >&2
   exit 1
 fi
 
@@ -61,7 +61,7 @@ OUT="$(mkdir -p "$OUT" && cd "$OUT" && pwd)"
 WEIGHTS="$(cd "$WEIGHTS" && pwd)"
 
 DOCKER_RUN=(docker run --rm)
-if [[ "${AXIS_DOCKER_GPU:-0}" == "1" ]]; then
+if [[ "${CLARITY_DOCKER_GPU:-0}" == "1" ]]; then
   DOCKER_RUN+=(--gpus all)
 fi
 

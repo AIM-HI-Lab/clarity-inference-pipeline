@@ -6,7 +6,7 @@ import os
 import unittest
 from unittest import mock
 
-from axis_inference_pipeline.pipeline_profile import (
+from clarity_inference_pipeline.pipeline_profile import (
     resolve_totalsegmentator_extra_args,
     resolve_tumor_extra_args,
 )
@@ -14,12 +14,12 @@ from axis_inference_pipeline.pipeline_profile import (
 
 class TestResolveExtraArgs(unittest.TestCase):
     def test_totalseg_cli_overrides_env(self) -> None:
-        with mock.patch.dict(os.environ, {"AXIS_TOTALSEG_EXTRA": "-f"}):
+        with mock.patch.dict(os.environ, {"CLARITY_TOTALSEG_EXTRA": "-f"}):
             got = resolve_totalsegmentator_extra_args(cli_extra="-x 1")
         self.assertEqual(got, ("-x", "1"))
 
     def test_totalseg_env_when_no_cli(self) -> None:
-        with mock.patch.dict(os.environ, {"AXIS_TOTALSEG_EXTRA": "-nr 2"}):
+        with mock.patch.dict(os.environ, {"CLARITY_TOTALSEG_EXTRA": "-nr 2"}):
             got = resolve_totalsegmentator_extra_args(cli_extra=None)
         self.assertEqual(got, ("-nr", "2"))
 
@@ -29,12 +29,12 @@ class TestResolveExtraArgs(unittest.TestCase):
         self.assertEqual(got, ())
 
     def test_tumor_cli_overrides_env(self) -> None:
-        with mock.patch.dict(os.environ, {"AXIS_TUMOR_EXTRA": "--disable_tta"}):
+        with mock.patch.dict(os.environ, {"CLARITY_TUMOR_EXTRA": "--disable_tta"}):
             got = resolve_tumor_extra_args(cli_extra="--mode normal")
         self.assertEqual(got, ("--mode", "normal"))
 
     def test_tumor_env_when_no_cli(self) -> None:
-        with mock.patch.dict(os.environ, {"AXIS_TUMOR_EXTRA": "-step_size 0.5"}):
+        with mock.patch.dict(os.environ, {"CLARITY_TUMOR_EXTRA": "-step_size 0.5"}):
             got = resolve_tumor_extra_args(cli_extra=None)
         self.assertEqual(got, ("-step_size", "0.5"))
 

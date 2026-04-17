@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from axis_inference_pipeline.config import TumorSegmentationConfig
-from axis_inference_pipeline.tumor_segmentation import run_tumor_segmentation
+from clarity_inference_pipeline.config import TumorSegmentationConfig
+from clarity_inference_pipeline.tumor_segmentation import run_tumor_segmentation
 
 
 class TumorSegmentationTests(unittest.TestCase):
@@ -32,7 +32,7 @@ class TumorSegmentationTests(unittest.TestCase):
                 return Result()
 
             with patch(
-                "axis_inference_pipeline.tumor_segmentation.run_subprocess_logged",
+                "clarity_inference_pipeline.tumor_segmentation.run_subprocess_logged",
                 side_effect=fake_logged,
             ):
                 run_tumor_segmentation(

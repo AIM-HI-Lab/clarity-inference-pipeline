@@ -1,4 +1,4 @@
-"""End-to-end orchestration: DICOM -> NIfTI -> segmentation -> axis-pn prediction."""
+"""End-to-end orchestration: DICOM -> NIfTI -> segmentation -> CLARITY (SWP) prediction."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 
 from . import __version__
 from .config import DicomPaths, PipelineConfig
-from .axis_pn import run_axis_pn_inference
+from .clarity import run_clarity_inference
 from .dicom import discover_series_roots, run_dcm2niix, stage_series_for_conversion
 from .dicom_sitk import convert_staged_dicom_to_nifti
 from .mask_adaptation import adapt_masks, swp_segmentation_has_tumor_voxels
@@ -30,7 +30,7 @@ from .workspace import (
 
 
 def _pipeline_log(message: str) -> None:
-    print(f"[axis-pn] {message}", file=sys.stderr, flush=True)
+    print(f"[clarity-pipeline] {message}", file=sys.stderr, flush=True)
 
 
 def find_primary_nifti(nifti_dir: Path) -> Path:
@@ -65,7 +65,7 @@ def _warn_if_cuda_requested_but_unavailable(device: str | None) -> None:
         "WARNING: --device cuda but torch.cuda.is_available() is False. "
         "TotalSegmentator and nnU-Net will run on CPU (slow). "
         "Fix: request a GPU in your job (Slurm: #SBATCH --gres=gpu:1; check echo $CUDA_VISIBLE_DEVICES); "
-        "install a PyTorch wheel that matches the node driver (AXIS_PYTORCH_CUDA in dev/setup_local_models.sh, e.g. cu118); "
+        "install a PyTorch wheel that matches the node driver (CLARITY_PYTORCH_CUDA in dev/setup_local_models.sh, e.g. cu118); "
         "in the job run: nvidia-smi && python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"."
     )
 
@@ -109,7 +109,7 @@ def run_pipeline(
             )
 
     processed_case_ids: list[str] = []
-    axis_pn_case_ids: list[str] = []
+    clarity_case_ids: list[str] = []
     n_selected = len(selected_series)
 
     for case_idx, series in enumerate(selected_series, start=1):
@@ -269,30 +269,30 @@ def run_pipeline(
         case_artifacts["segmentation"] = str(adapted)
 
         has_tumor = swp_segmentation_has_tumor_voxels(adapted)
-        axis_pn_skip: str | None = None
+        clarity_skip: str | None = None
         if not config.skip_tumor:
             if not has_tumor:
                 if config.continue_on_empty_tumor:
-                    axis_pn_skip = "no_tumor_voxels_in_segmentation"
-                    case_artifacts["axis_pn_skip"] = axis_pn_skip
+                    clarity_skip = "no_tumor_voxels_in_segmentation"
+                    case_artifacts["clarity_skip"] = clarity_skip
                     warnings.warn(
                         f"Case {case_id}: no SWP label 2 (tumor) after nnU-Net + mask fusion — "
-                        f"omitting from axis-pn manifest. Inspect {case_paths['tumor_segmentation']} "
+                        f"omitting from CLARITY manifest. Inspect {case_paths['tumor_segmentation']} "
                         f"and {adapted}. Default is to continue; use --fail-on-empty-tumor to abort on this.",
                         stacklevel=2,
                     )
                 else:
                     raise RuntimeError(
                         "Combined segmentation has no tumor voxels (SWP label 2). "
-                        "axis-pn needs a non-empty tumor mask to sample patches. "
+                        "CLARITY inference needs a non-empty tumor mask to sample patches. "
                         f"Inspect nnU-Net output {case_paths['tumor_segmentation']} (unique labels) "
                         f"and {adapted}. "
                         "Common causes: nnU-Net predicts no tumor for this scan, wrong CT series "
                         "(use a diagnostic CT, not SEG), or a bad/cached tumor run. "
-                        "Omit --fail-on-empty-tumor (default) to skip axis-pn for this case and continue."
+                        "Omit --fail-on-empty-tumor (default) to skip CLARITY for this case and continue."
                     )
             else:
-                axis_pn_case_ids.append(case_id)
+                clarity_case_ids.append(case_id)
 
         case_metadata: dict[str, Any] = {
             "case_id": case_id,
@@ -309,8 +309,8 @@ def run_pipeline(
                 "tumor_segmentation": str(case_paths["tumor_segmentation"]),
             },
         }
-        if axis_pn_skip is not None:
-            case_metadata["axis_pn_skip"] = axis_pn_skip
+        if clarity_skip is not None:
+            case_metadata["clarity_skip"] = clarity_skip
 
         write_case_metadata(case_paths["metadata"], case_metadata)
         artifacts["cases"].append(
@@ -330,7 +330,7 @@ def run_pipeline(
         raise RuntimeError("No DICOM series were processed successfully.")
 
     _pipeline_log(
-        f"Writing SWP manifest ({len(axis_pn_case_ids)} case(s) with tumor labels for axis-pn; "
+        f"Writing SWP manifest ({len(clarity_case_ids)} case(s) with tumor labels for CLARITY; "
         f"{len(processed_case_ids)} case(s) processed overall)…"
     )
 
@@ -348,31 +348,31 @@ def run_pipeline(
     swp_manifest_path = layout["root"] / "swp_manifest.json"
     write_swp_manifest(
         swp_manifest_path,
-        case_ids=axis_pn_case_ids,
+        case_ids=clarity_case_ids,
         data_root=layout["cases"],
     )
     steps_completed.append("swp_manifest")
     artifacts["swp_manifest"] = str(swp_manifest_path)
 
     if not config.skip_inference:
-        if len(axis_pn_case_ids) == 0:
+        if len(clarity_case_ids) == 0:
             _pipeline_log(
-                "Skipping axis-pn inference: no case has SWP tumor label 2 "
+                "Skipping CLARITY inference: no case has SWP tumor label 2 "
                 "(nnU-Net produced no tumor voxels, or all such cases were skipped)."
             )
         else:
-            _pipeline_log("axis-pn inference (PN vs RN)…")
+            _pipeline_log("CLARITY inference (PN vs RN)…")
             prediction_path = layout["predictions"] / config.inference.output_name
-            run_axis_pn_inference(
+            run_clarity_inference(
                 manifest_path=swp_manifest_path,
                 data_root=layout["cases"],
                 output_json=prediction_path,
                 config=config.inference,
             )
-            steps_completed.append("axis_pn_inference")
+            steps_completed.append("clarity_inference")
             artifacts["predictions_json"] = str(prediction_path)
 
-    artifacts["axis_pn_case_ids"] = axis_pn_case_ids
+    artifacts["clarity_case_ids"] = clarity_case_ids
 
     manifest_path = layout["root"] / config.manifest_name
     write_manifest(
@@ -384,7 +384,7 @@ def run_pipeline(
             "workspace_root": str(config.workspace_root),
             "dicom_input": str(config.dicom.input_dir),
             "case_ids": processed_case_ids,
-            "axis_pn_case_ids": axis_pn_case_ids,
+            "clarity_case_ids": clarity_case_ids,
             "series_instance_uid": series_instance_uid,
             "phase_gating_enabled": config.phase_gating.enabled,
             "skip_tumor": config.skip_tumor,

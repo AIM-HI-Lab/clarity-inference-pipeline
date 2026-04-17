@@ -46,8 +46,8 @@ RUN if [ "$INSTALL_NNUNET" = "1" ]; then \
     rm -f /tmp/Task135_KiTS2021.zip; \
     fi
 
-LABEL org.opencontainers.image.title="axis-inference-pipeline" \
-      org.opencontainers.image.description="DICOM → TotalSegmentator → nnU-Net tumor → axis-pn (SWP)"
+LABEL org.opencontainers.image.title="clarity-inference-pipeline" \
+      org.opencontainers.image.description="DICOM → TotalSegmentator → nnU-Net tumor → CLARITY (SWP)"
 
-# axis-pn predict: default TotalSegmentator total task unless overridden via --totalseg-extra / AXIS_TOTALSEG_EXTRA.
+# clarity-pipeline predict: default TotalSegmentator total task unless overridden via --totalseg-extra / CLARITY_TOTALSEG_EXTRA.
 ENTRYPOINT ["/docker-entrypoint.sh"]

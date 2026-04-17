@@ -3,9 +3,9 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "axis-inference-pipeline"
+name = "clarity-inference-pipeline"
 version = "0.1.0"
-description = "End-to-end DICOM-to-axis-pn pipeline and PNvsRN NIfTI inference (SWP stack)."
+description = "End-to-end DICOM-to-CLARITY pipeline and PNvsRN NIfTI inference (SWP stack)."
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
@@ -31,8 +31,8 @@ phase = [
 ]
 
 [project.scripts]
-axis-pn = "axis_inference_pipeline.cli:main"
-axis-nnunet-predict = "axis_inference_pipeline.nnunet_predict_compat:main"
+clarity-pipeline = "clarity_inference_pipeline.cli:main"
+clarity-nnunet-predict = "clarity_inference_pipeline.nnunet_predict_compat:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

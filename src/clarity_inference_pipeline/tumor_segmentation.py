@@ -19,10 +19,10 @@ def resolve_tumor_binary(config: TumorSegmentationConfig) -> str:
 
 
 def _executable_for_mode(config: TumorSegmentationConfig) -> str:
-    """``axis-nnunet-predict`` is the v1 PyTorch 2.6+ shim; v2 still uses ``nnUNetv2_predict``."""
+    """``clarity-nnunet-predict`` is the v1 PyTorch 2.6+ shim; v2 still uses ``nnUNetv2_predict``."""
 
     b = resolve_tumor_binary(config)
-    if config.mode == "nnunetv2" and b == "axis-nnunet-predict":
+    if config.mode == "nnunetv2" and b == "clarity-nnunet-predict":
         return "nnUNetv2_predict"
     return b
 
@@ -38,7 +38,7 @@ def run_tumor_segmentation(
     Run the configured tumor segmentation command.
 
     ``totalseg_dir`` is included for pipelines that pass organ context; it is appended
-    to the environment as ``AXIS_TOTALSEG_DIR`` when set.
+    to the environment as ``CLARITY_TOTALSEG_DIR`` when set.
     """
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,12 +46,12 @@ def run_tumor_segmentation(
     env = os.environ.copy()
     env.update(dict(config.env))
     if totalseg_dir is not None:
-        env.setdefault("AXIS_TOTALSEG_DIR", str(totalseg_dir))
+        env.setdefault("CLARITY_TOTALSEG_DIR", str(totalseg_dir))
 
     if config.mode == "nnunetv2":
         case_id = output_path.stem.replace(".nii", "")
-        with tempfile.TemporaryDirectory(prefix="axis_tumor_input_") as tmp_input, tempfile.TemporaryDirectory(
-            prefix="axis_tumor_output_"
+        with tempfile.TemporaryDirectory(prefix="clarity_tumor_input_") as tmp_input, tempfile.TemporaryDirectory(
+            prefix="clarity_tumor_output_"
         ) as tmp_output:
             tmp_input_path = Path(tmp_input)
             tmp_output_path = Path(tmp_output)
@@ -80,8 +80,8 @@ def run_tumor_segmentation(
 
     if config.mode == "nnunetv1":
         case_id = output_path.stem.replace(".nii", "")
-        with tempfile.TemporaryDirectory(prefix="axis_tumor_input_") as tmp_input, tempfile.TemporaryDirectory(
-            prefix="axis_tumor_output_"
+        with tempfile.TemporaryDirectory(prefix="clarity_tumor_input_") as tmp_input, tempfile.TemporaryDirectory(
+            prefix="clarity_tumor_output_"
         ) as tmp_output:
             tmp_input_path = Path(tmp_input)
             tmp_output_path = Path(tmp_output)

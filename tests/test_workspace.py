@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from axis_inference_pipeline.workspace import ensure_case_workspace, write_swp_manifest
+from clarity_inference_pipeline.workspace import ensure_case_workspace, write_swp_manifest
 
 
 class WorkspaceTests(unittest.TestCase):

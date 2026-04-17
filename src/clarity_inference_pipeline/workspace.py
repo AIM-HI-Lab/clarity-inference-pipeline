@@ -61,7 +61,7 @@ def write_manifest(
     """Write a JSON manifest describing the run."""
 
     payload: dict[str, Any] = {
-        "schema": "axis_inference_pipeline.manifest.v1",
+        "schema": "clarity_inference_pipeline.manifest.v1",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "pipeline_version": pipeline_version,
         "steps_completed": list(steps_completed),

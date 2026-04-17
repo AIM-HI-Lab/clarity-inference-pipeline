@@ -218,4 +218,5 @@ local-runs/
 .nnunetv2/
 .totalsegmentator/
 .cache/
+dev/clarity_local_env.sh
 dev/axis_local_env.sh

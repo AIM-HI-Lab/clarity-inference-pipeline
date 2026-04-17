@@ -97,7 +97,7 @@ def swp_segmentation_has_tumor_voxels(
     """
     Return True if ``segmentation_path`` contains at least one voxel in ``tumor_label_ids``.
 
-    axis-pn / SWP V5 require a non-empty primary (default label ``2``) to build patches.
+    CLARITY / SWP V5 require a non-empty primary (default label ``2``) to build patches.
     """
 
     import nibabel as nib

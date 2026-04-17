@@ -11,7 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover - environment-dependent
     nib = None
     np = None
 
-from axis_inference_pipeline.totalsegmentator import _write_kidney_binary_mask
+from clarity_inference_pipeline.totalsegmentator import _write_kidney_binary_mask
 
 
 @unittest.skipIf(nib is None or np is None, "nibabel is not installed")

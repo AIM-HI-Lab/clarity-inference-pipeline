@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=axis-kits-gpu
+#SBATCH --job-name=clarity-kits-gpu
 #SBATCH --partition=gpu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=12
@@ -7,31 +7,31 @@
 #SBATCH --gres=gpu:1
 # Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
 #
-# GPU batch run: same flow as dev/run_local_dicom_batch.sh with AXIS_DEVICE=cuda.
+# GPU batch run: same flow as dev/run_local_dicom_batch.sh with CLARITY_DEVICE=cuda.
 # Works for any per-patient DICOM tree (TCIA KiTS19 is a common test set; layout is not KiTS-specific).
 # --mem is in megabytes on typical Slurm sites.
 #
 # Submit (example) — run from INSIDE the repo so SLURM_SUBMIT_DIR is the clone.
-#   cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job
-# Or: sbatch --chdir=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job  (Slurm 20.11+)
-# Or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job
+#   cd /path/to/clarity-inference-pipeline && sbatch dev/slurm_gpu_kits.job
+# Or: sbatch --chdir=/path/to/clarity-inference-pipeline dev/slurm_gpu_kits.job  (Slurm 20.11+)
+# Or: sbatch --export=ALL,CLARITY_REPO_ROOT=/path/to/clarity-inference-pipeline dev/slurm_gpu_kits.job
 #
-# Process one case folder, or ALL immediate subfolders under AXIS_DICOM_CASES_ROOT (default: ALL):
+# Process one case folder, or ALL immediate subfolders under CLARITY_DICOM_CASES_ROOT (default: ALL):
 #   sbatch --export=ALL,CASE_NAME=patient_042 dev/slurm_gpu_kits.job
 #   sbatch dev/slurm_gpu_kits.job   # CASE_NAME defaults to ALL
 #
 # Optional overrides (export before sbatch or pass via --export):
 #   TMPDIR — nnU-Net may spill large predictions to disk; use fast node-local scratch.
-#   AXIS_TUMOR_EXTRA — default via run_local_dicom_batch.sh includes --disable_tta for speed.
-#   AXIS_FAIL_ON_EMPTY_TUMOR=1 — abort if nnU-Net yields no tumor voxels (default: skip axis-pn for that case).
-#   AXIS_REPO_ROOT   — absolute path to repo root if this .job file is not under dev/ in the clone
-#   AXIS_VENV_DIR    — path to venv if not <repo>/.venv (must contain bin/axis-pn)
-#   AXIS_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
-#   AXIS_DICOM_CASES_ROOT — parent of per-patient folders (each subdir = one case). AXIS_KITS_ROOT is deprecated alias.
-#   AXIS_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
-#   AXIS_WORK_ROOT   — output root (default: <repo>/local-runs)
-#   AXIS_DICOM_BACKEND — auto (default), sitk, or dcm2niix
-#   AXIS_DCM2NIIX    — full path to dcm2niix if needed
+#   CLARITY_TUMOR_EXTRA — default via run_local_dicom_batch.sh includes --disable_tta for speed.
+#   CLARITY_FAIL_ON_EMPTY_TUMOR=1 — abort if nnU-Net yields no tumor voxels (default: skip CLARITY for that case).
+#   CLARITY_REPO_ROOT   — absolute path to repo root if this .job file is not under dev/ in the clone
+#   CLARITY_VENV_DIR    — path to venv if not <repo>/.venv (must contain bin/clarity-pipeline)
+#   CLARITY_PYTHON      — interpreter for ./dev/setup_local_models.sh (default python3.10)
+#   CLARITY_DICOM_CASES_ROOT — parent of per-patient folders (each subdir = one case). CLARITY_KITS_ROOT is deprecated alias.
+#   CLARITY_WEIGHTS_DIR — PNvsRN checkpoint tree (default: <repo>/pnvrn_folds)
+#   CLARITY_WORK_ROOT   — output root (default: <repo>/local-runs)
+#   CLARITY_DICOM_BACKEND — auto (default), sitk, or dcm2niix
+#   CLARITY_DCM2NIIX    — full path to dcm2niix if needed
 #
 # If your cluster uses a different GPU syntax, replace or edit the #SBATCH --gres line.
 #
@@ -40,10 +40,10 @@ set -euo pipefail
 CASE_NAME="${CASE_NAME:-ALL}"
 
 # Slurm executes a *copy* of this script under a spool dir (e.g. .../slurm/var/spool/...), so
-# $BASH_SOURCE/../.. is NOT the git repo. Prefer SLURM_SUBMIT_DIR (cwd when sbatch ran) or AXIS_REPO_ROOT.
-if [[ -n "${AXIS_REPO_ROOT:-}" ]]; then
-  REPO_ROOT="$(cd "${AXIS_REPO_ROOT}" && pwd)" || {
-    echo "AXIS_REPO_ROOT is not a directory: ${AXIS_REPO_ROOT}" >&2
+# $BASH_SOURCE/../.. is NOT the git repo. Prefer SLURM_SUBMIT_DIR (cwd when sbatch ran) or CLARITY_REPO_ROOT.
+if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd "${CLARITY_REPO_ROOT}" && pwd)" || {
+    echo "CLARITY_REPO_ROOT is not a directory: ${CLARITY_REPO_ROOT}" >&2
     exit 1
   }
 elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/dev/run_local_dicom_batch.sh" ]]; then
@@ -53,12 +53,12 @@ else
   if [[ -f "${_FROM_SCRIPT}/dev/run_local_dicom_batch.sh" ]]; then
     REPO_ROOT="${_FROM_SCRIPT}"
   else
-    echo "Could not find axis-inference-pipeline repo root." >&2
+    echo "Could not find clarity-inference-pipeline repo root." >&2
     echo "Slurm runs this script from a spool directory; \$BASH_SOURCE points at ${BASH_SOURCE[0]}" >&2
     echo "Fix: submit from the clone so SLURM_SUBMIT_DIR is set correctly:" >&2
-    echo "  cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job" >&2
+    echo "  cd /path/to/clarity-inference-pipeline && sbatch dev/slurm_gpu_kits.job" >&2
     echo "Or pass the repo explicitly:" >&2
-    echo "  sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job" >&2
+    echo "  sbatch --export=ALL,CLARITY_REPO_ROOT=/path/to/clarity-inference-pipeline dev/slurm_gpu_kits.job" >&2
     exit 1
   fi
 fi
@@ -67,8 +67,8 @@ cd "${REPO_ROOT}" || exit 1
 # If torch sees +cpu or missing libcuda at runtime, some sites need (uncomment, adjust names):
 #   module load cuda cudnn
 
-VENV_DIR="${AXIS_VENV_DIR:-${REPO_ROOT}/.venv}"
-AXIS_PN="${VENV_DIR}/bin/axis-pn"
+VENV_DIR="${CLARITY_VENV_DIR:-${REPO_ROOT}/.venv}"
+CLARITY_PIPELINE="${VENV_DIR}/bin/clarity-pipeline"
 
 CPUS="${SLURM_CPUS_PER_TASK:-12}"
 export OMP_NUM_THREADS="${CPUS}"
@@ -76,30 +76,30 @@ export MKL_NUM_THREADS="${CPUS}"
 export OPENBLAS_NUM_THREADS="${CPUS}"
 export NUMEXPR_NUM_THREADS="${CPUS}"
 
-export AXIS_DICOM_CASES_ROOT="${AXIS_DICOM_CASES_ROOT:-${AXIS_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms}}"
-export AXIS_DEVICE="${AXIS_DEVICE:-cuda}"
+export CLARITY_DICOM_CASES_ROOT="${CLARITY_DICOM_CASES_ROOT:-${CLARITY_KITS_ROOT:-/home/jonnalr/AIM-HI-Lab/kits-dicoms}}"
+export CLARITY_DEVICE="${CLARITY_DEVICE:-cuda}"
 
-# GPU diagnostics before the pipeline (same as dev/check_gpu_env.sh). Disable with AXIS_DEBUG_CUDA=0.
-if [[ "${AXIS_DEBUG_CUDA:-1}" != "0" ]]; then
-  echo "========== GPU / torch check (AXIS_DEBUG_CUDA=0 to skip) =========="
+# GPU diagnostics before the pipeline (same as dev/check_gpu_env.sh). Disable with CLARITY_DEBUG_CUDA=0.
+if [[ "${CLARITY_DEBUG_CUDA:-1}" != "0" ]]; then
+  echo "========== GPU / torch check (CLARITY_DEBUG_CUDA=0 to skip) =========="
   bash "${REPO_ROOT}/dev/check_gpu_env.sh" || true
   echo "====================================================================="
 fi
 
-if [[ ! -x "${AXIS_PN}" ]]; then
-  echo "Cannot run axis-pn at: ${AXIS_PN}" >&2
+if [[ ! -x "${CLARITY_PIPELINE}" ]]; then
+  echo "Cannot run clarity-pipeline at: ${CLARITY_PIPELINE}" >&2
   echo "  REPO_ROOT=${REPO_ROOT}" >&2
   echo "  VENV_DIR=${VENV_DIR}" >&2
   echo "Fix one of:" >&2
   echo "  1) On a login/build node, create the venv in this clone:" >&2
   echo "       cd ${REPO_ROOT} && ./dev/setup_local_models.sh" >&2
-  echo "  2) If your venv lives elsewhere: export AXIS_VENV_DIR=/path/to/venv before sbatch" >&2
+  echo "  2) If your venv lives elsewhere: export CLARITY_VENV_DIR=/path/to/venv before sbatch" >&2
   echo "  3) If REPO_ROOT looks like a Slurm spool path, submit from the clone:" >&2
-  echo "       cd /path/to/axis-inference-pipeline && sbatch dev/slurm_gpu_kits.job" >&2
-  echo "     or: sbatch --export=ALL,AXIS_REPO_ROOT=/path/to/axis-inference-pipeline dev/slurm_gpu_kits.job" >&2
+  echo "       cd /path/to/clarity-inference-pipeline && sbatch dev/slurm_gpu_kits.job" >&2
+  echo "     or: sbatch --export=ALL,CLARITY_REPO_ROOT=/path/to/clarity-inference-pipeline dev/slurm_gpu_kits.job" >&2
   echo "For GPU, ensure PyTorch in that venv is CUDA-enabled (see README cluster GPU note)." >&2
   exit 1
 fi
 
-export AXIS_VENV_DIR="${VENV_DIR}"
+export CLARITY_VENV_DIR="${VENV_DIR}"
 exec bash "${REPO_ROOT}/dev/run_local_dicom_batch.sh" "${CASE_NAME}"
