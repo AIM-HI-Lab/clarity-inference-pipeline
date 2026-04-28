@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=clarity-s3-worker
+#SBATCH --partition=gpu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=32200
+#SBATCH --gres=gpu:1
+#SBATCH --output=slurm-%x-%j.out
+# Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
+#
+# Run CLARITY S3 worker on a private node via Slurm.
+#
+# Submit examples:
+#   cd /path/to/clarity-inference-pipeline && sbatch dev/slurm_s3_worker.job
+#   sbatch --export=ALL,CLARITY_REPO_ROOT=/path/to/clarity-inference-pipeline dev/slurm_s3_worker.job
+#
+# One-shot mode from sbatch:
+#   sbatch --export=ALL,CLARITY_S3_ONCE=1 dev/slurm_s3_worker.job
+#
+# Required env vars (pass via --export, shell env, or a sourced file):
+#   CLARITY_S3_BUCKET=clarity-upload-portal-prod
+#   CLARITY_WEIGHTS_DIR=/absolute/path/to/pnvrn_folds
+#
+# Optional env vars:
+#   CLARITY_S3_PREFIX_ROOT=clarity/submissions
+#   CLARITY_WORK_ROOT=/scratch/$USER/clarity-s3-worker
+#   CLARITY_DEVICE=cuda|cpu
+#   CLARITY_S3_POLL_SECONDS=30
+#   CLARITY_S3_MAX_CASES=4
+#   CLARITY_DELETE_INPUT_AFTER_SUCCESS=1
+#   CLARITY_DELETE_INPUT_AFTER_FAILURE=0
+#   CLARITY_S3_ONCE=0|1
+#   AWS_DEFAULT_REGION=us-east-1
+#   AWS_PROFILE=clarity-worker             # if using ~/.aws/credentials
+#   AWS_SHARED_CREDENTIALS_FILE=/secure/path/credentials
+#
+set -euo pipefail
+
+if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd "${CLARITY_REPO_ROOT}" && pwd)" || {
+    echo "CLARITY_REPO_ROOT is not a directory: ${CLARITY_REPO_ROOT}" >&2
+    exit 1
+  }
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/pyproject.toml" ]]; then
+  REPO_ROOT="$(cd "${SLURM_SUBMIT_DIR}" && pwd)"
+else
+  _FROM_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  if [[ -f "${_FROM_SCRIPT}/pyproject.toml" ]]; then
+    REPO_ROOT="${_FROM_SCRIPT}"
+  else
+    echo "Could not locate repository root." >&2
+    echo "Submit from the clone or set CLARITY_REPO_ROOT." >&2
+    exit 1
+  fi
+fi
+cd "${REPO_ROOT}"
+
+VENV_DIR="${CLARITY_VENV_DIR:-${REPO_ROOT}/.venv}"
+WORKER_BIN="${VENV_DIR}/bin/clarity-s3-worker"
+
+if [[ ! -x "${WORKER_BIN}" ]]; then
+  echo "Cannot run worker at ${WORKER_BIN}" >&2
+  echo "Create env with: ./dev/setup_local_models.sh" >&2
+  echo "Or set CLARITY_VENV_DIR to an existing venv path." >&2
+  exit 1
+fi
+
+if [[ -z "${CLARITY_S3_BUCKET:-}" ]]; then
+  echo "Missing required env var: CLARITY_S3_BUCKET" >&2
+  exit 1
+fi
+if [[ -z "${CLARITY_WEIGHTS_DIR:-}" ]]; then
+  echo "Missing required env var: CLARITY_WEIGHTS_DIR" >&2
+  exit 1
+fi
+
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
+export CLARITY_S3_PREFIX_ROOT="${CLARITY_S3_PREFIX_ROOT:-clarity/submissions}"
+export CLARITY_WORK_ROOT="${CLARITY_WORK_ROOT:-${REPO_ROOT}/local-s3-worker}"
+export CLARITY_DEVICE="${CLARITY_DEVICE:-cuda}"
+export CLARITY_S3_POLL_SECONDS="${CLARITY_S3_POLL_SECONDS:-30}"
+export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:-0}"
+export CLARITY_DELETE_INPUT_AFTER_SUCCESS="${CLARITY_DELETE_INPUT_AFTER_SUCCESS:-0}"
+export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-0}"
+
+mkdir -p "${CLARITY_WORK_ROOT}"
+
+# GPU diagnostics (disable with CLARITY_DEBUG_CUDA=0).
+if [[ "${CLARITY_DEVICE}" == "cuda" && "${CLARITY_DEBUG_CUDA:-1}" != "0" ]]; then
+  bash "${REPO_ROOT}/dev/check_gpu_env.sh" || true
+fi
+
+CMD=(
+  "${WORKER_BIN}" run
+  --bucket "${CLARITY_S3_BUCKET}"
+  --region "${AWS_DEFAULT_REGION}"
+  --prefix-root "${CLARITY_S3_PREFIX_ROOT}"
+  --work-root "${CLARITY_WORK_ROOT}"
+  --weights-dir "${CLARITY_WEIGHTS_DIR}"
+  --device "${CLARITY_DEVICE}"
+  --poll-seconds "${CLARITY_S3_POLL_SECONDS}"
+)
+
+if [[ -n "${CLARITY_S3_MAX_CASES:-}" ]]; then
+  CMD+=(--max-cases "${CLARITY_S3_MAX_CASES}")
+fi
+
+if [[ "${CLARITY_DELETE_INPUT_AFTER_SUCCESS}" == "1" ]]; then
+  CMD+=(--delete-input-after-success)
+fi
+if [[ "${CLARITY_DELETE_INPUT_AFTER_FAILURE}" == "1" ]]; then
+  CMD+=(--delete-input-after-failure)
+fi
+if [[ "${CLARITY_S3_ONCE}" == "1" ]]; then
+  CMD+=(--once)
+fi
+
+echo "Running: ${CMD[*]}"
+exec "${CMD[@]}"

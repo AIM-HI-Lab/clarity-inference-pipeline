@@ -125,6 +125,97 @@ Notable flags: `--series-uid`, `--dicom-backend auto|dcm2niix|sitk`, `--totalseg
 
 Predictions are **inference-only** (`evaluation_mode: "prediction_only"`); no ground-truth labels are required.
 
+## S3 Worker (Upload Portal Contract)
+
+`clarity-s3-worker` polls `s3://<bucket>/clarity/submissions/{submission_id}` and writes
+`result.json` in the Upload Portal schema.
+
+### One-shot mode
+
+```bash
+clarity-s3-worker run \
+  --bucket my-clarity-bucket \
+  --region us-east-1 \
+  --weights-dir /models/pnvrn_folds \
+  --device cpu \
+  --once
+```
+
+### Continuous polling mode
+
+```bash
+clarity-s3-worker run \
+  --bucket my-clarity-bucket \
+  --region us-east-1 \
+  --prefix-root clarity/submissions \
+  --weights-dir /models/pnvrn_folds \
+  --work-root /var/lib/clarity-worker \
+  --device cuda \
+  --poll-seconds 30 \
+  --max-cases 4 \
+  --delete-input-after-success
+```
+
+Worker behavior:
+
+- Pending submission: `input/` has at least one `.dcm` and `result.json` does not exist.
+- Writes `status="processing"` before inference starts.
+- Writes `status="completed"` with a single `clarity_score` (mean positive-class probability across produced case rows).
+- On exceptions, writes `status="failed"`, `clarity_score: null`, and a concise error message.
+- Optional cleanup only deletes `clarity/submissions/{submission_id}/input/*` (never `manifest.json` or `result.json`).
+
+### Environment variables
+
+| Variable | CLI flag | Default | Notes |
+| --- | --- | --- | --- |
+| `CLARITY_S3_BUCKET` | `--bucket` | _(required)_ | Target S3 bucket. |
+| `AWS_DEFAULT_REGION` | `--region` | `us-east-1` | AWS region for S3 client. |
+| `CLARITY_S3_PREFIX_ROOT` | `--prefix-root` | `clarity/submissions` | Submission root prefix. |
+| `CLARITY_WORK_ROOT` | `--work-root` | `/tmp/clarity-s3-worker` | Local temp workspace parent. |
+| `CLARITY_WEIGHTS_DIR` | `--weights-dir` | _(required)_ | PNvsRN fold checkpoints directory. |
+| `CLARITY_DEVICE` | `--device` | `cpu` | `cpu` or `cuda`. |
+| `CLARITY_S3_POLL_SECONDS` | `--poll-seconds` | `30` | Poll interval in loop mode. |
+| `CLARITY_S3_MAX_CASES` | `--max-cases` | unset | Limit processed submissions per cycle. |
+| `CLARITY_DELETE_INPUT_AFTER_SUCCESS` | `--delete-input-after-success` | `false` | Remove `input/*` after successful upload. |
+| `CLARITY_DELETE_INPUT_AFTER_FAILURE` | `--delete-input-after-failure` | `false` | Remove `input/*` after failed run. |
+| `CLARITY_PIPELINE_VERSION` | `--pipeline-version` | package version | Version string written into `result.json`. |
+
+### IAM permissions (minimum)
+
+- `s3:ListBucket` on bucket with prefix conditions for `clarity/submissions/*`
+- `s3:GetObject` on `arn:aws:s3:::<bucket>/clarity/submissions/*`
+- `s3:PutObject` on `arn:aws:s3:::<bucket>/clarity/submissions/*`
+- `s3:DeleteObject` on `arn:aws:s3:::<bucket>/clarity/submissions/*` (only needed when delete flags are enabled)
+
+### systemd example
+
+```ini
+[Unit]
+Description=CLARITY S3 Worker
+After=network-online.target
+
+[Service]
+Type=simple
+User=clarity
+WorkingDirectory=/opt/clarity-inference-pipeline
+Environment=CLARITY_S3_BUCKET=my-clarity-bucket
+Environment=AWS_DEFAULT_REGION=us-east-1
+Environment=CLARITY_WEIGHTS_DIR=/opt/models/pnvrn_folds
+Environment=CLARITY_DEVICE=cuda
+ExecStart=/opt/clarity-inference-pipeline/.venv/bin/clarity-s3-worker run --poll-seconds 30
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### cron example (one-shot every 5 minutes)
+
+```cron
+*/5 * * * * cd /opt/clarity-inference-pipeline && /opt/clarity-inference-pipeline/.venv/bin/clarity-s3-worker run --bucket my-clarity-bucket --weights-dir /opt/models/pnvrn_folds --once >> /var/log/clarity-s3-worker.log 2>&1
+```
+
 ## Output
 
 Under `--work-dir`: `cases/<series_uid>/` (NIfTI + segmentations), `swp_manifest.json`, `predictions/predictions.json`, `run_manifest.json`. Main result file: **`predictions/predictions.json`** (ensemble over checkpoints).

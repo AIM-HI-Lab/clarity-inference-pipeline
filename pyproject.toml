@@ -17,6 +17,7 @@ dependencies = [
     "scipy",
     "opencv-python-headless",
     "typer>=0.9.0",
+    "boto3",
     "pydicom>=2.4.0",
     "SimpleITK>=2.3.0",
 ]
@@ -33,6 +34,7 @@ phase = [
 [project.scripts]
 clarity-pipeline = "clarity_inference_pipeline.cli:main"
 clarity-nnunet-predict = "clarity_inference_pipeline.nnunet_predict_compat:main"
+clarity-s3-worker = "clarity_inference_pipeline.s3_worker:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

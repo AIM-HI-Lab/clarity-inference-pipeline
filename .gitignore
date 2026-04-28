@@ -220,3 +220,4 @@ local-runs/
 .cache/
 dev/clarity_local_env.sh
 dev/axis_local_env.sh
+dev/clarity_s3_worker.env
