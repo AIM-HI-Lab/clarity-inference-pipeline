@@ -55,6 +55,8 @@ CLARITY_WEIGHTS_DIR_DEFAULT=""  # if blank, uses <repo>/pnvrn_folds
 CLARITY_S3_PREFIX_ROOT_DEFAULT="clarity/submissions"
 CLARITY_WORK_ROOT_DEFAULT="/home/jonnalr/AIM-HI-Lab/temp"  # if blank, uses <repo>/local-s3-worker
 CLARITY_DEVICE_DEFAULT="cuda"
+CLARITY_DICOM_BACKEND_DEFAULT="sitk"
+CLARITY_DCM2NIIX_DEFAULT="dcm2niix"
 CLARITY_S3_POLL_SECONDS_DEFAULT="30"
 CLARITY_S3_MAX_CASES_DEFAULT=""  # blank means no limit
 CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT="0"
@@ -65,20 +67,25 @@ AWS_PROFILE_DEFAULT="clarity-worker"  # optional (for ~/.aws/credentials profile
 AWS_SHARED_CREDENTIALS_FILE_DEFAULT="/home/jonnalr/.aws/credentials"
 AWS_CONFIG_FILE_DEFAULT="/home/jonnalr/.aws/config"
 
+# Slurm executes a copy under a spool dir, so prefer submit dir or explicit CLARITY_REPO_ROOT.
 if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
   REPO_ROOT="$(cd "${CLARITY_REPO_ROOT}" && pwd)" || {
     echo "CLARITY_REPO_ROOT is not a directory: ${CLARITY_REPO_ROOT}" >&2
     exit 1
   }
-elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/pyproject.toml" ]]; then
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/dev/run_local_dicom_batch.sh" ]]; then
   REPO_ROOT="$(cd "${SLURM_SUBMIT_DIR}" && pwd)"
 else
   _FROM_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  if [[ -f "${_FROM_SCRIPT}/pyproject.toml" ]]; then
+  if [[ -f "${_FROM_SCRIPT}/dev/run_local_dicom_batch.sh" ]]; then
     REPO_ROOT="${_FROM_SCRIPT}"
   else
-    echo "Could not locate repository root." >&2
-    echo "Submit from the clone or set CLARITY_REPO_ROOT." >&2
+    echo "Could not find clarity-inference-pipeline repo root." >&2
+    echo "Slurm runs this script from a spool directory; \$BASH_SOURCE points at ${BASH_SOURCE[0]}" >&2
+    echo "Fix: submit from the clone so SLURM_SUBMIT_DIR is set correctly:" >&2
+    echo "  cd /path/to/clarity-inference-pipeline && sbatch dev/slurm_s3_worker.job" >&2
+    echo "Or pass the repo explicitly:" >&2
+    echo "  sbatch --export=ALL,CLARITY_REPO_ROOT=/path/to/clarity-inference-pipeline dev/slurm_s3_worker.job" >&2
     exit 1
   fi
 fi
@@ -97,12 +104,25 @@ fi
 VENV_DIR="${CLARITY_VENV_DIR:-${REPO_ROOT}/.venv}"
 WORKER_BIN="${VENV_DIR}/bin/clarity-s3-worker"
 
+CPUS="${SLURM_CPUS_PER_TASK:-12}"
+export OMP_NUM_THREADS="${CPUS}"
+export MKL_NUM_THREADS="${CPUS}"
+export OPENBLAS_NUM_THREADS="${CPUS}"
+export NUMEXPR_NUM_THREADS="${CPUS}"
+
+if [[ -f "${REPO_ROOT}/dev/clarity_local_env.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "${REPO_ROOT}/dev/clarity_local_env.sh"
+fi
+export PATH="${VENV_DIR}/bin:${PATH}"
+
 if [[ ! -x "${WORKER_BIN}" ]]; then
   echo "Cannot run worker at ${WORKER_BIN}" >&2
   echo "Create env with: ./dev/setup_local_models.sh" >&2
   echo "Or set CLARITY_VENV_DIR to an existing venv path." >&2
   exit 1
 fi
+export CLARITY_VENV_DIR="${VENV_DIR}"
 
 export CLARITY_S3_BUCKET="${CLARITY_S3_BUCKET:-${CLARITY_S3_BUCKET_DEFAULT}}"
 export CLARITY_WEIGHTS_DIR="${CLARITY_WEIGHTS_DIR:-${CLARITY_WEIGHTS_DIR_DEFAULT}}"
@@ -124,6 +144,8 @@ if [[ -z "${CLARITY_WORK_ROOT}" ]]; then
   export CLARITY_WORK_ROOT="${REPO_ROOT}/local-s3-worker"
 fi
 export CLARITY_DEVICE="${CLARITY_DEVICE:-${CLARITY_DEVICE_DEFAULT}}"
+export CLARITY_DICOM_BACKEND="${CLARITY_DICOM_BACKEND:-${CLARITY_DICOM_BACKEND_DEFAULT}}"
+export CLARITY_DCM2NIIX="${CLARITY_DCM2NIIX:-${CLARITY_DCM2NIIX_DEFAULT}}"
 export CLARITY_S3_POLL_SECONDS="${CLARITY_S3_POLL_SECONDS:-${CLARITY_S3_POLL_SECONDS_DEFAULT}}"
 export CLARITY_S3_MAX_CASES="${CLARITY_S3_MAX_CASES:-${CLARITY_S3_MAX_CASES_DEFAULT}}"
 export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:-${CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT}}"
@@ -155,6 +177,10 @@ echo "  prefix=${CLARITY_S3_PREFIX_ROOT}"
 echo "  work_root=${CLARITY_WORK_ROOT}"
 echo "  weights_dir=${CLARITY_WEIGHTS_DIR}"
 echo "  device=${CLARITY_DEVICE}"
+echo "  dicom_backend=${CLARITY_DICOM_BACKEND}"
+if [[ "${CLARITY_DICOM_BACKEND}" == "dcm2niix" ]]; then
+  echo "  dcm2niix=${CLARITY_DCM2NIIX}"
+fi
 echo "  poll_seconds=${CLARITY_S3_POLL_SECONDS}"
 echo "  max_cases=${CLARITY_S3_MAX_CASES:-<none>}"
 echo "  delete_after_success=${CLARITY_DELETE_INPUT_AFTER_SUCCESS}"
@@ -174,6 +200,8 @@ CMD=(
   --work-root "${CLARITY_WORK_ROOT}"
   --weights-dir "${CLARITY_WEIGHTS_DIR}"
   --device "${CLARITY_DEVICE}"
+  --dicom-backend "${CLARITY_DICOM_BACKEND}"
+  --dcm2niix "${CLARITY_DCM2NIIX}"
   --poll-seconds "${CLARITY_S3_POLL_SECONDS}"
 )
 

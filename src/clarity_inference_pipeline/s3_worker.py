@@ -279,6 +279,8 @@ def _process_submission(
     work_root: Path,
     weights_dir: Path,
     device: str,
+    dicom_backend: str,
+    dcm2niix_binary: str,
     pipeline_version: str,
     delete_input_after_success: bool,
 ) -> None:
@@ -327,6 +329,8 @@ def _process_submission(
             skip_inference=False,
             reuse_cached_artifacts=False,
             continue_on_empty_tumor=False,
+            dicom_backend=dicom_backend,
+            dcm2niix_binary=dcm2niix_binary,
         )
         _log("info", "pipeline_start", submission_id=submission.submission_id)
         run_pipeline(cfg)
@@ -364,6 +368,8 @@ def _run_iteration(
     work_root: Path,
     weights_dir: Path,
     device: str,
+    dicom_backend: str,
+    dcm2niix_binary: str,
     pipeline_version: str,
     max_cases: int | None,
     delete_input_after_success: bool,
@@ -386,6 +392,8 @@ def _run_iteration(
                 work_root=work_root,
                 weights_dir=weights_dir,
                 device=device,
+                dicom_backend=dicom_backend,
+                dcm2niix_binary=dcm2niix_binary,
                 pipeline_version=pipeline_version,
                 delete_input_after_success=delete_input_after_success,
             )
@@ -436,6 +444,18 @@ def run(
         file_okay=False,
     ),
     device: str = typer.Option("cpu", "--device", envvar="CLARITY_DEVICE"),
+    dicom_backend: str = typer.Option(
+        "sitk",
+        "--dicom-backend",
+        envvar="CLARITY_DICOM_BACKEND",
+        help="DICOM conversion backend: sitk or dcm2niix.",
+    ),
+    dcm2niix_binary: str = typer.Option(
+        "dcm2niix",
+        "--dcm2niix",
+        envvar="CLARITY_DCM2NIIX",
+        help="dcm2niix executable path/name when backend=dcm2niix.",
+    ),
     poll_seconds: int = typer.Option(30, "--poll-seconds", envvar="CLARITY_S3_POLL_SECONDS"),
     once: bool = typer.Option(False, "--once", help="Run one scan/process cycle and exit."),
     max_cases: int | None = typer.Option(
@@ -479,6 +499,8 @@ def run(
         once=once,
         poll_seconds=poll_seconds,
         max_cases=max_cases,
+        dicom_backend=dicom_backend,
+        dcm2niix_binary=dcm2niix_binary,
     )
 
     while True:
@@ -489,6 +511,8 @@ def run(
             work_root=work_root,
             weights_dir=weights_dir,
             device=device,
+            dicom_backend=dicom_backend,
+            dcm2niix_binary=dcm2niix_binary,
             pipeline_version=pipeline_version,
             max_cases=max_cases,
             delete_input_after_success=delete_input_after_success,
