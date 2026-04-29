@@ -62,8 +62,8 @@ CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT="0"
 CLARITY_S3_ONCE_DEFAULT="0"
 AWS_DEFAULT_REGION_DEFAULT="us-east-2"
 AWS_PROFILE_DEFAULT=""  # optional (for ~/.aws/credentials profile)
-AWS_SHARED_CREDENTIALS_FILE_DEFAULT="/home/jonnalr/beegfs/.aws/credentials"
-AWS_CONFIG_FILE_DEFAULT="/home/jonnalr/beegfs/.aws/config"
+AWS_SHARED_CREDENTIALS_FILE_DEFAULT="/home/jonnalr/.aws/credentials"
+AWS_CONFIG_FILE_DEFAULT="/home/jonnalr/.aws/config"
 
 if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
   REPO_ROOT="$(cd "${CLARITY_REPO_ROOT}" && pwd)" || {
@@ -116,14 +116,8 @@ if [[ -n "${AWS_PROFILE_VALUE}" ]]; then
 else
   unset AWS_PROFILE || true
 fi
-AWS_SHARED_CREDENTIALS_FILE_VALUE="${AWS_SHARED_CREDENTIALS_FILE:-${AWS_SHARED_CREDENTIALS_FILE_DEFAULT}}"
-if [[ -n "${AWS_SHARED_CREDENTIALS_FILE_VALUE}" ]]; then
-  export AWS_SHARED_CREDENTIALS_FILE="${AWS_SHARED_CREDENTIALS_FILE_VALUE}"
-fi
-AWS_CONFIG_FILE_VALUE="${AWS_CONFIG_FILE:-${AWS_CONFIG_FILE_DEFAULT}}"
-if [[ -n "${AWS_CONFIG_FILE_VALUE}" ]]; then
-  export AWS_CONFIG_FILE="${AWS_CONFIG_FILE_VALUE}"
-fi
+export AWS_SHARED_CREDENTIALS_FILE="${AWS_SHARED_CREDENTIALS_FILE:-${AWS_SHARED_CREDENTIALS_FILE_DEFAULT}}"
+export AWS_CONFIG_FILE="${AWS_CONFIG_FILE:-${AWS_CONFIG_FILE_DEFAULT}}"
 export CLARITY_S3_PREFIX_ROOT="${CLARITY_S3_PREFIX_ROOT:-${CLARITY_S3_PREFIX_ROOT_DEFAULT}}"
 export CLARITY_WORK_ROOT="${CLARITY_WORK_ROOT:-${CLARITY_WORK_ROOT_DEFAULT}}"
 if [[ -z "${CLARITY_WORK_ROOT}" ]]; then
@@ -144,14 +138,6 @@ fi
 if [[ ! -d "${CLARITY_WEIGHTS_DIR}" ]]; then
   echo "CLARITY_WEIGHTS_DIR does not exist: ${CLARITY_WEIGHTS_DIR}" >&2
   echo "Expected default is <repo>/pnvrn_folds. If yours is elsewhere, set CLARITY_WEIGHTS_DIR." >&2
-  exit 1
-fi
-if [[ -n "${AWS_SHARED_CREDENTIALS_FILE:-}" && ! -f "${AWS_SHARED_CREDENTIALS_FILE}" ]]; then
-  echo "AWS credentials file not found: ${AWS_SHARED_CREDENTIALS_FILE}" >&2
-  exit 1
-fi
-if [[ -n "${AWS_CONFIG_FILE:-}" && ! -f "${AWS_CONFIG_FILE}" ]]; then
-  echo "AWS config file not found: ${AWS_CONFIG_FILE}" >&2
   exit 1
 fi
 
@@ -177,12 +163,8 @@ echo "  once=${CLARITY_S3_ONCE}"
 if [[ -n "${AWS_PROFILE:-}" ]]; then
   echo "  aws_profile=${AWS_PROFILE}"
 fi
-if [[ -n "${AWS_SHARED_CREDENTIALS_FILE:-}" ]]; then
-  echo "  aws_credentials_file=${AWS_SHARED_CREDENTIALS_FILE}"
-fi
-if [[ -n "${AWS_CONFIG_FILE:-}" ]]; then
-  echo "  aws_config_file=${AWS_CONFIG_FILE}"
-fi
+echo "  aws_shared_credentials_file=${AWS_SHARED_CREDENTIALS_FILE}"
+echo "  aws_config_file=${AWS_CONFIG_FILE}"
 
 CMD=(
   "${WORKER_BIN}"
