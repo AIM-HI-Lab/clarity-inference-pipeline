@@ -244,6 +244,16 @@ def _extract_clarity_score(predictions_path: Path) -> float:
     return float(sum(scores) / len(scores))
 
 
+def _read_clarity_case_count(workspace_root: Path) -> int:
+    manifest_path = workspace_root / "run_manifest.json"
+    if not manifest_path.exists():
+        return 0
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    artifacts = payload.get("artifacts") or {}
+    case_ids = artifacts.get("clarity_case_ids") or []
+    return len(case_ids)
+
+
 def delete_input_objects(s3_client: Any, *, bucket: str, input_prefix: str) -> int:
     paginator = s3_client.get_paginator("list_objects_v2")
     to_delete: list[dict[str, str]] = []
@@ -281,6 +291,7 @@ def _process_submission(
     device: str,
     dicom_backend: str,
     dcm2niix_binary: str,
+    fail_on_empty_tumor: bool,
     pipeline_version: str,
     delete_input_after_success: bool,
 ) -> None:
@@ -328,13 +339,19 @@ def _process_submission(
             skip_tumor=False,
             skip_inference=False,
             reuse_cached_artifacts=False,
-            continue_on_empty_tumor=False,
+            continue_on_empty_tumor=not fail_on_empty_tumor,
             dicom_backend=dicom_backend,
             dcm2niix_binary=dcm2niix_binary,
         )
         _log("info", "pipeline_start", submission_id=submission.submission_id)
         run_pipeline(cfg)
         _log("info", "pipeline_complete", submission_id=submission.submission_id)
+
+        clarity_case_count = _read_clarity_case_count(pipeline_workspace)
+        if clarity_case_count == 0:
+            raise RuntimeError(
+                "No series in this submission produced tumor voxels for CLARITY scoring."
+            )
 
         predictions_path = pipeline_workspace / "predictions" / "predictions.json"
         clarity_score = _extract_clarity_score(predictions_path)
@@ -370,6 +387,7 @@ def _run_iteration(
     device: str,
     dicom_backend: str,
     dcm2niix_binary: str,
+    fail_on_empty_tumor: bool,
     pipeline_version: str,
     max_cases: int | None,
     delete_input_after_success: bool,
@@ -394,6 +412,7 @@ def _run_iteration(
                 device=device,
                 dicom_backend=dicom_backend,
                 dcm2niix_binary=dcm2niix_binary,
+                fail_on_empty_tumor=fail_on_empty_tumor,
                 pipeline_version=pipeline_version,
                 delete_input_after_success=delete_input_after_success,
             )
@@ -456,6 +475,12 @@ def run(
         envvar="CLARITY_DCM2NIIX",
         help="dcm2niix executable path/name when backend=dcm2niix.",
     ),
+    fail_on_empty_tumor: bool = typer.Option(
+        False,
+        "--fail-on-empty-tumor/--allow-empty-tumor",
+        envvar="CLARITY_FAIL_ON_EMPTY_TUMOR",
+        help="Match clarity-pipeline behavior. Default allows empty tumor series to be skipped.",
+    ),
     poll_seconds: int = typer.Option(30, "--poll-seconds", envvar="CLARITY_S3_POLL_SECONDS"),
     once: bool = typer.Option(False, "--once", help="Run one scan/process cycle and exit."),
     max_cases: int | None = typer.Option(
@@ -501,6 +526,7 @@ def run(
         max_cases=max_cases,
         dicom_backend=dicom_backend,
         dcm2niix_binary=dcm2niix_binary,
+        fail_on_empty_tumor=fail_on_empty_tumor,
     )
 
     while True:
@@ -513,6 +539,7 @@ def run(
             device=device,
             dicom_backend=dicom_backend,
             dcm2niix_binary=dcm2niix_binary,
+            fail_on_empty_tumor=fail_on_empty_tumor,
             pipeline_version=pipeline_version,
             max_cases=max_cases,
             delete_input_after_success=delete_input_after_success,

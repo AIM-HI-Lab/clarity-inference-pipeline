@@ -62,6 +62,7 @@ CLARITY_S3_MAX_CASES_DEFAULT=""  # blank means no limit
 CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT="0"
 CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT="0"
 CLARITY_S3_ONCE_DEFAULT="1"
+CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT="0"
 AWS_DEFAULT_REGION_DEFAULT="us-east-2"
 AWS_PROFILE_DEFAULT="clarity-worker"  # optional (for ~/.aws/credentials profile)
 AWS_SHARED_CREDENTIALS_FILE_DEFAULT="/home/jonnalr/.aws/credentials"
@@ -177,6 +178,7 @@ export CLARITY_S3_MAX_CASES="${CLARITY_S3_MAX_CASES:-${CLARITY_S3_MAX_CASES_DEFA
 export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:-${CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT}}"
 export CLARITY_DELETE_INPUT_AFTER_SUCCESS="${CLARITY_DELETE_INPUT_AFTER_SUCCESS:-${CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT}}"
 export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-${CLARITY_S3_ONCE_DEFAULT}}"
+export CLARITY_FAIL_ON_EMPTY_TUMOR="${CLARITY_FAIL_ON_EMPTY_TUMOR:-${CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT}}"
 
 if [[ -z "${CLARITY_S3_BUCKET}" ]]; then
   echo "CLARITY_S3_BUCKET is empty (unexpected)." >&2
@@ -218,6 +220,7 @@ echo "  poll_seconds=${CLARITY_S3_POLL_SECONDS}"
 echo "  max_cases=${CLARITY_S3_MAX_CASES:-<none>}"
 echo "  delete_after_success=${CLARITY_DELETE_INPUT_AFTER_SUCCESS}"
 echo "  delete_after_failure=${CLARITY_DELETE_INPUT_AFTER_FAILURE}"
+echo "  fail_on_empty_tumor=${CLARITY_FAIL_ON_EMPTY_TUMOR}"
 echo "  once=${CLARITY_S3_ONCE}"
 if [[ -n "${AWS_PROFILE:-}" ]]; then
   echo "  aws_profile=${AWS_PROFILE}"
@@ -253,6 +256,9 @@ if [[ "${CLARITY_DELETE_INPUT_AFTER_FAILURE}" == "1" ]]; then
 fi
 if [[ "${CLARITY_S3_ONCE}" == "1" ]]; then
   CMD+=(--once)
+fi
+if [[ "${CLARITY_FAIL_ON_EMPTY_TUMOR}" == "1" ]]; then
+  CMD+=(--fail-on-empty-tumor)
 fi
 
 echo "Running: ${CMD[*]}"
