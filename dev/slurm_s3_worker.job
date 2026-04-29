@@ -17,9 +17,9 @@
 # One-shot mode from sbatch:
 #   sbatch --export=ALL,CLARITY_S3_ONCE=1 dev/slurm_s3_worker.job
 #
-# Required env vars (pass via --export, shell env, or a sourced file):
-#   CLARITY_S3_BUCKET=clarity-upload-portal-prod
-#   CLARITY_WEIGHTS_DIR=/absolute/path/to/pnvrn_folds
+# Zero-config defaults (aligned to this repo/chat):
+#   CLARITY_S3_BUCKET defaults to clarity-upload-portal-prod
+#   CLARITY_WEIGHTS_DIR defaults to <repo>/pnvrn_folds
 #
 # Optional env vars:
 #   CLARITY_S3_PREFIX_ROOT=clarity/submissions
@@ -50,10 +50,10 @@ set -euo pipefail
 #   AWS_DEFAULT_REGION=us-east-1
 #
 CLARITY_S3_ENV_FILE_DEFAULT="dev/slurm_s3_worker.env"
-CLARITY_S3_BUCKET_DEFAULT=""
-CLARITY_WEIGHTS_DIR_DEFAULT=""
+CLARITY_S3_BUCKET_DEFAULT="clarity-upload-portal-prod"
+CLARITY_WEIGHTS_DIR_DEFAULT=""  # if blank, uses <repo>/pnvrn_folds
 CLARITY_S3_PREFIX_ROOT_DEFAULT="clarity/submissions"
-CLARITY_WORK_ROOT_DEFAULT="/home/jonnalr/AIM-HI-Lab/temp"  # if blank, uses <repo>/local-s3-worker
+CLARITY_WORK_ROOT_DEFAULT=""  # if blank, uses <repo>/local-s3-worker
 CLARITY_DEVICE_DEFAULT="cuda"
 CLARITY_S3_POLL_SECONDS_DEFAULT="30"
 CLARITY_S3_MAX_CASES_DEFAULT=""  # blank means no limit
@@ -104,6 +104,9 @@ fi
 
 export CLARITY_S3_BUCKET="${CLARITY_S3_BUCKET:-${CLARITY_S3_BUCKET_DEFAULT}}"
 export CLARITY_WEIGHTS_DIR="${CLARITY_WEIGHTS_DIR:-${CLARITY_WEIGHTS_DIR_DEFAULT}}"
+if [[ -z "${CLARITY_WEIGHTS_DIR}" ]]; then
+  export CLARITY_WEIGHTS_DIR="${REPO_ROOT}/pnvrn_folds"
+fi
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${AWS_DEFAULT_REGION_DEFAULT}}"
 export AWS_PROFILE="${AWS_PROFILE:-${AWS_PROFILE_DEFAULT}}"
 export CLARITY_S3_PREFIX_ROOT="${CLARITY_S3_PREFIX_ROOT:-${CLARITY_S3_PREFIX_ROOT_DEFAULT}}"
@@ -118,12 +121,14 @@ export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:
 export CLARITY_DELETE_INPUT_AFTER_SUCCESS="${CLARITY_DELETE_INPUT_AFTER_SUCCESS:-${CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT}}"
 export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-${CLARITY_S3_ONCE_DEFAULT}}"
 
-if [[ -z "${CLARITY_S3_BUCKET}" || -z "${CLARITY_WEIGHTS_DIR}" ]]; then
-  echo "Missing required settings." >&2
-  echo "Set CLARITY_S3_BUCKET and CLARITY_WEIGHTS_DIR via one of:" >&2
-  echo "  1) ${REPO_ROOT}/${CLARITY_S3_ENV_FILE_DEFAULT}" >&2
-  echo "  2) environment exports before sbatch" >&2
-  echo "  3) sbatch --export=ALL,CLARITY_S3_BUCKET=...,CLARITY_WEIGHTS_DIR=..." >&2
+if [[ -z "${CLARITY_S3_BUCKET}" ]]; then
+  echo "CLARITY_S3_BUCKET is empty (unexpected)." >&2
+  echo "Set via ${REPO_ROOT}/${CLARITY_S3_ENV_FILE_DEFAULT} or --export." >&2
+  exit 1
+fi
+if [[ ! -d "${CLARITY_WEIGHTS_DIR}" ]]; then
+  echo "CLARITY_WEIGHTS_DIR does not exist: ${CLARITY_WEIGHTS_DIR}" >&2
+  echo "Expected default is <repo>/pnvrn_folds. If yours is elsewhere, set CLARITY_WEIGHTS_DIR." >&2
   exit 1
 fi
 
