@@ -36,6 +36,33 @@
 #
 set -euo pipefail
 
+# -----------------------------------------------------------------------------
+# Quick config (easy mode)
+# -----------------------------------------------------------------------------
+# Option A (recommended): create dev/slurm_s3_worker.env with KEY=VALUE lines.
+# Option B: edit defaults below.
+# Option C: override at submit time via: sbatch --export=ALL,KEY=value ...
+#
+# Example env file:
+#   CLARITY_S3_BUCKET=clarity-upload-portal-prod
+#   CLARITY_WEIGHTS_DIR=/absolute/path/to/pnvrn_folds
+#   AWS_PROFILE=clarity-worker
+#   AWS_DEFAULT_REGION=us-east-1
+#
+CLARITY_S3_ENV_FILE_DEFAULT="dev/slurm_s3_worker.env"
+CLARITY_S3_BUCKET_DEFAULT=""
+CLARITY_WEIGHTS_DIR_DEFAULT=""
+CLARITY_S3_PREFIX_ROOT_DEFAULT="clarity/submissions"
+CLARITY_WORK_ROOT_DEFAULT=""  # if blank, uses <repo>/local-s3-worker
+CLARITY_DEVICE_DEFAULT="cuda"
+CLARITY_S3_POLL_SECONDS_DEFAULT="30"
+CLARITY_S3_MAX_CASES_DEFAULT=""  # blank means no limit
+CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT="0"
+CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT="0"
+CLARITY_S3_ONCE_DEFAULT="0"
+AWS_DEFAULT_REGION_DEFAULT="us-east-1"
+AWS_PROFILE_DEFAULT=""  # optional (for ~/.aws/credentials profile)
+
 if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
   REPO_ROOT="$(cd "${CLARITY_REPO_ROOT}" && pwd)" || {
     echo "CLARITY_REPO_ROOT is not a directory: ${CLARITY_REPO_ROOT}" >&2
@@ -55,6 +82,16 @@ else
 fi
 cd "${REPO_ROOT}"
 
+# Load config file if present (safe for plain KEY=VALUE env files).
+CLARITY_S3_ENV_FILE="${CLARITY_S3_ENV_FILE:-${REPO_ROOT}/${CLARITY_S3_ENV_FILE_DEFAULT}}"
+if [[ -f "${CLARITY_S3_ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${CLARITY_S3_ENV_FILE}"
+  set +a
+  echo "Loaded config from ${CLARITY_S3_ENV_FILE}"
+fi
+
 VENV_DIR="${CLARITY_VENV_DIR:-${REPO_ROOT}/.venv}"
 WORKER_BIN="${VENV_DIR}/bin/clarity-s3-worker"
 
@@ -65,29 +102,52 @@ if [[ ! -x "${WORKER_BIN}" ]]; then
   exit 1
 fi
 
-if [[ -z "${CLARITY_S3_BUCKET:-}" ]]; then
-  echo "Missing required env var: CLARITY_S3_BUCKET" >&2
-  exit 1
+export CLARITY_S3_BUCKET="${CLARITY_S3_BUCKET:-${CLARITY_S3_BUCKET_DEFAULT}}"
+export CLARITY_WEIGHTS_DIR="${CLARITY_WEIGHTS_DIR:-${CLARITY_WEIGHTS_DIR_DEFAULT}}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${AWS_DEFAULT_REGION_DEFAULT}}"
+export AWS_PROFILE="${AWS_PROFILE:-${AWS_PROFILE_DEFAULT}}"
+export CLARITY_S3_PREFIX_ROOT="${CLARITY_S3_PREFIX_ROOT:-${CLARITY_S3_PREFIX_ROOT_DEFAULT}}"
+export CLARITY_WORK_ROOT="${CLARITY_WORK_ROOT:-${CLARITY_WORK_ROOT_DEFAULT}}"
+if [[ -z "${CLARITY_WORK_ROOT}" ]]; then
+  export CLARITY_WORK_ROOT="${REPO_ROOT}/local-s3-worker"
 fi
-if [[ -z "${CLARITY_WEIGHTS_DIR:-}" ]]; then
-  echo "Missing required env var: CLARITY_WEIGHTS_DIR" >&2
-  exit 1
-fi
+export CLARITY_DEVICE="${CLARITY_DEVICE:-${CLARITY_DEVICE_DEFAULT}}"
+export CLARITY_S3_POLL_SECONDS="${CLARITY_S3_POLL_SECONDS:-${CLARITY_S3_POLL_SECONDS_DEFAULT}}"
+export CLARITY_S3_MAX_CASES="${CLARITY_S3_MAX_CASES:-${CLARITY_S3_MAX_CASES_DEFAULT}}"
+export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:-${CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT}}"
+export CLARITY_DELETE_INPUT_AFTER_SUCCESS="${CLARITY_DELETE_INPUT_AFTER_SUCCESS:-${CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT}}"
+export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-${CLARITY_S3_ONCE_DEFAULT}}"
 
-export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
-export CLARITY_S3_PREFIX_ROOT="${CLARITY_S3_PREFIX_ROOT:-clarity/submissions}"
-export CLARITY_WORK_ROOT="${CLARITY_WORK_ROOT:-${REPO_ROOT}/local-s3-worker}"
-export CLARITY_DEVICE="${CLARITY_DEVICE:-cuda}"
-export CLARITY_S3_POLL_SECONDS="${CLARITY_S3_POLL_SECONDS:-30}"
-export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:-0}"
-export CLARITY_DELETE_INPUT_AFTER_SUCCESS="${CLARITY_DELETE_INPUT_AFTER_SUCCESS:-0}"
-export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-0}"
+if [[ -z "${CLARITY_S3_BUCKET}" || -z "${CLARITY_WEIGHTS_DIR}" ]]; then
+  echo "Missing required settings." >&2
+  echo "Set CLARITY_S3_BUCKET and CLARITY_WEIGHTS_DIR via one of:" >&2
+  echo "  1) ${REPO_ROOT}/${CLARITY_S3_ENV_FILE_DEFAULT}" >&2
+  echo "  2) environment exports before sbatch" >&2
+  echo "  3) sbatch --export=ALL,CLARITY_S3_BUCKET=...,CLARITY_WEIGHTS_DIR=..." >&2
+  exit 1
+fi
 
 mkdir -p "${CLARITY_WORK_ROOT}"
 
 # GPU diagnostics (disable with CLARITY_DEBUG_CUDA=0).
 if [[ "${CLARITY_DEVICE}" == "cuda" && "${CLARITY_DEBUG_CUDA:-1}" != "0" ]]; then
   bash "${REPO_ROOT}/dev/check_gpu_env.sh" || true
+fi
+
+echo "Worker config:"
+echo "  bucket=${CLARITY_S3_BUCKET}"
+echo "  region=${AWS_DEFAULT_REGION}"
+echo "  prefix=${CLARITY_S3_PREFIX_ROOT}"
+echo "  work_root=${CLARITY_WORK_ROOT}"
+echo "  weights_dir=${CLARITY_WEIGHTS_DIR}"
+echo "  device=${CLARITY_DEVICE}"
+echo "  poll_seconds=${CLARITY_S3_POLL_SECONDS}"
+echo "  max_cases=${CLARITY_S3_MAX_CASES:-<none>}"
+echo "  delete_after_success=${CLARITY_DELETE_INPUT_AFTER_SUCCESS}"
+echo "  delete_after_failure=${CLARITY_DELETE_INPUT_AFTER_FAILURE}"
+echo "  once=${CLARITY_S3_ONCE}"
+if [[ -n "${AWS_PROFILE:-}" ]]; then
+  echo "  aws_profile=${AWS_PROFILE}"
 fi
 
 CMD=(
