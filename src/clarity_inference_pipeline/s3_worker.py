@@ -233,12 +233,23 @@ def _download_submission_input(
 
 def _extract_clarity_score(predictions_path: Path) -> float:
     payload = json.loads(predictions_path.read_text(encoding="utf-8"))
-    rows = payload.get("val_rows") or []
     scores: list[float] = []
-    for row in rows:
-        probs = row.get("pred_probs")
+
+    # Current SWP prediction-only payload shape:
+    # { "cases": [ {"ensemble_pred_probs": [...], ...}, ... ], ... }
+    for row in payload.get("cases") or []:
+        probs = row.get("ensemble_pred_probs")
         if isinstance(probs, list) and len(probs) >= 2:
             scores.append(float(probs[1]))
+
+    # Backward-compatibility with older payload shape:
+    # { "val_rows": [ {"pred_probs": [...], ...}, ... ] }
+    if not scores:
+        for row in payload.get("val_rows") or []:
+            probs = row.get("pred_probs")
+            if isinstance(probs, list) and len(probs) >= 2:
+                scores.append(float(probs[1]))
+
     if not scores:
         raise ValueError("No prediction probabilities found in predictions output.")
     return float(sum(scores) / len(scores))
