@@ -117,7 +117,7 @@ if [[ -f "${REPO_ROOT}/dev/clarity_local_env.sh" ]]; then
 fi
 export PATH="${VENV_DIR}/bin:${PATH}"
 
-# Mirror dev/run_local_dicom_batch.sh nnU-Net v1/v2 env wiring so Task135 resolves.
+# Mirror dev/run_local_dicom_batch.sh nnU-Net v2 env wiring so Dataset123_Kits23 resolves.
 if [[ -n "${CLARITY_NNUNET_V1_RAW:-}" ]]; then
   export nnUNet_raw_data_base="${CLARITY_NNUNET_V1_RAW}"
 fi
@@ -130,6 +130,9 @@ fi
 if [[ -n "${CLARITY_NNUNET_V2_RAW:-}" ]]; then
   export nnUNet_raw="${CLARITY_NNUNET_V2_RAW}"
 fi
+if [[ -n "${CLARITY_NNUNET_V2_PREPROCESSED:-}" ]]; then
+  export nnUNet_preprocessed="${CLARITY_NNUNET_V2_PREPROCESSED}"
+fi
 if [[ -n "${CLARITY_NNUNET_V2_RESULTS:-}" ]]; then
   export nnUNet_results="${CLARITY_NNUNET_V2_RESULTS}"
 fi
@@ -137,10 +140,6 @@ fi
 # nnU-Net uses TMPDIR heavily; on Slurm prefer node-local temp if provided.
 if [[ -n "${SLURM_TMPDIR:-}" ]]; then
   export TMPDIR="${TMPDIR:-${SLURM_TMPDIR}}"
-fi
-# Match local batch default for faster nnU-Net v1 unless explicitly overridden.
-if [[ -z "${CLARITY_TUMOR_EXTRA+x}" ]]; then
-  export CLARITY_TUMOR_EXTRA="--disable_tta"
 fi
 
 if [[ ! -x "${WORKER_BIN}" ]]; then
@@ -190,9 +189,9 @@ if [[ ! -d "${CLARITY_WEIGHTS_DIR}" ]]; then
   echo "Expected default is <repo>/pnvrn_folds. If yours is elsewhere, set CLARITY_WEIGHTS_DIR." >&2
   exit 1
 fi
-if [[ -z "${RESULTS_FOLDER:-}" || -z "${nnUNet_preprocessed:-}" || -z "${nnUNet_raw_data_base:-}" ]]; then
-  echo "nnU-Net setup is not initialized for this job environment." >&2
-  echo "Expected nnUNet v1 vars are missing (RESULTS_FOLDER / nnUNet_preprocessed / nnUNet_raw_data_base)." >&2
+if [[ -z "${nnUNet_results:-}" || -z "${nnUNet_preprocessed:-}" || -z "${nnUNet_raw:-}" ]]; then
+  echo "nnU-Net v2 setup is not initialized for this job environment." >&2
+  echo "Expected nnUNet v2 vars are missing (nnUNet_results / nnUNet_preprocessed / nnUNet_raw)." >&2
   echo "Run once from repo root: ./dev/setup_local_models.sh" >&2
   echo "Or ensure dev/clarity_local_env.sh is present and readable on compute node." >&2
   exit 1
@@ -227,9 +226,9 @@ if [[ -n "${AWS_PROFILE:-}" ]]; then
 fi
 echo "  aws_shared_credentials_file=${AWS_SHARED_CREDENTIALS_FILE}"
 echo "  aws_config_file=${AWS_CONFIG_FILE}"
-echo "  nnunet_raw_data_base=${nnUNet_raw_data_base:-<unset>}"
+echo "  nnunet_raw=${nnUNet_raw:-<unset>}"
 echo "  nnunet_preprocessed=${nnUNet_preprocessed:-<unset>}"
-echo "  results_folder=${RESULTS_FOLDER:-<unset>}"
+echo "  nnunet_results=${nnUNet_results:-<unset>}"
 
 CMD=(
   "${WORKER_BIN}"

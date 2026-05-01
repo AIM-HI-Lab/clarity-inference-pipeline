@@ -99,13 +99,13 @@ def predict(
         str,
         typer.Option(
             "--tumor-binary",
-            help="Tumor CLI (default: clarity-nnunet-predict for nnunetv1 — PyTorch 2.6+ safe nnU-Net v1).",
+            help="Tumor CLI (default: nnUNetv2_predict for nnunetv2).",
         ),
-    ] = "clarity-nnunet-predict",
+    ] = "nnUNetv2_predict",
     tumor_mode: Annotated[
         str,
-        typer.Option("--tumor-mode", help="Tumor segmentation wrapper mode: nnunetv1, nnunetv2, or simple."),
-    ] = "nnunetv1",
+        typer.Option("--tumor-mode", help="Tumor segmentation wrapper mode: nnunetv2, nnunetv1, or simple."),
+    ] = "nnunetv2",
     tumor_task_id: Annotated[
         str,
         typer.Option("--tumor-task-id", help="nnU-Net v1 task id when --tumor-mode=nnunetv1."),

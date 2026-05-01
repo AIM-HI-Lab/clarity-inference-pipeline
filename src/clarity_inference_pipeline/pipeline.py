@@ -236,6 +236,12 @@ def run_pipeline(
             case_artifacts["tumor_segmentation"] = {
                 "returncode": proc_tu.returncode,
                 "stdout": proc_tu.stdout[-4000:] if proc_tu.stdout else "",
+                "tumor_seg_v2": {
+                    "model_name": "nnUNet_KiTS23",
+                    "mode": config.tumor.mode,
+                    "dataset_id": config.tumor.dataset_id,
+                    "configuration": config.tumor.configuration,
+                },
             }
             if proc_tu.returncode != 0:
                 raise RuntimeError(

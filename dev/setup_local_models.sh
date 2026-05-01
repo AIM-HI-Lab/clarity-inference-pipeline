@@ -130,35 +130,41 @@ fi
 source "${REPO_ROOT}/dev/clarity_local_env.sh"
 export PATH="${VENV_DIR}/bin:${PATH}"
 export nnUNet_raw_data_base="${CLARITY_NNUNET_V1_RAW}"
-export nnUNet_preprocessed="${CLARITY_NNUNET_V1_PREPROCESSED}"
 export RESULTS_FOLDER="${CLARITY_NNUNET_V1_RESULTS}"
 export nnUNet_raw="${CLARITY_NNUNET_V2_RAW}"
+export nnUNet_preprocessed="${CLARITY_NNUNET_V2_PREPROCESSED}"
 export nnUNet_results="${CLARITY_NNUNET_V2_RESULTS}"
 
 totalseg_download_weights -t total || true
 
-MODEL_ZIP="${REPO_ROOT}/.cache/Task135_KiTS2021.zip"
-mkdir -p "${REPO_ROOT}/.cache"
-if [[ ! -f "${MODEL_ZIP}" ]]; then
-  "${PYTHON_BIN}" - <<'PY' "${MODEL_ZIP}"
-from pathlib import Path
-import sys
-import urllib.request
-
-dest = Path(sys.argv[1])
-url = "https://zenodo.org/records/5126443/files/Task135_KiTS2021.zip?download=1"
-urllib.request.urlretrieve(url, dest)
-print(dest)
-PY
+# ── nnU-Net v2 KiTS23 model ──────────────────────────────────────────────────
+# The active tumor segmentation model is nnU-Net v2 trained on KiTS23
+# (Dataset123_Kits23, 3d_fullres, fold all).
+#
+# Place trained weights under:
+#   ${NNUNET_V2_ROOT}/results/Dataset123_Kits23/nnUNetTrainer__nnUNetPlans__3d_fullres/fold_all/
+#
+# Expected files:  checkpoint_final.pth  (and optionally checkpoint_best.pth)
+#
+# If you have a zip from nnU-Net v2 export, install it with:
+#   export nnUNet_results="${NNUNET_V2_ROOT}/results"
+#   nnUNetv2_install_pretrained_model_from_zip <path/to/Dataset123_Kits23.zip>
+#
+KITS23_MODEL_DIR="${NNUNET_V2_ROOT}/results/Dataset123_Kits23/nnUNetTrainer__nnUNetPlans__3d_fullres/fold_all"
+if [[ ! -f "${KITS23_MODEL_DIR}/checkpoint_final.pth" ]]; then
+  echo ""
+  echo "⚠  KiTS23 v2 model weights not found at:"
+  echo "     ${KITS23_MODEL_DIR}/checkpoint_final.pth"
+  echo "   Copy or symlink your trained checkpoint there before running the pipeline."
+  echo "   (See comment in this script for details.)"
+  echo ""
 fi
-
-nnUNet_install_pretrained_model_from_zip "${MODEL_ZIP}"
 
 echo
 echo "Setup complete."
 echo "Python: ${CLARITY_PYTHON} → ${VENV_DIR}"
 echo "Environment file: ${REPO_ROOT}/dev/clarity_local_env.sh"
-echo "Legacy KiTS model root: ${CLARITY_NNUNET_V1_RESULTS}"
+echo "nnU-Net v2 model root: ${CLARITY_NNUNET_V2_RESULTS}"
 echo "TotalSegmentator cache: ${TOTALSEG_HOME_DIR}"
 echo
 export TORCH_VARIANT="${TORCH_VARIANT:-}"

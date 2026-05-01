@@ -45,6 +45,9 @@ fi
 if [[ -n "${CLARITY_NNUNET_V2_RAW:-}" ]]; then
   export nnUNet_raw="${CLARITY_NNUNET_V2_RAW}"
 fi
+if [[ -n "${CLARITY_NNUNET_V2_PREPROCESSED:-}" ]]; then
+  export nnUNet_preprocessed="${CLARITY_NNUNET_V2_PREPROCESSED}"
+fi
 if [[ -n "${CLARITY_NNUNET_V2_RESULTS:-}" ]]; then
   export nnUNet_results="${CLARITY_NNUNET_V2_RESULTS}"
 fi
@@ -52,11 +55,6 @@ fi
 # nnU-Net spills large predictions to $TMPDIR; on Slurm, node-local temp avoids slow BeeGFS.
 if [[ -n "${SLURM_TMPDIR:-}" ]]; then
   export TMPDIR="${TMPDIR:-${SLURM_TMPDIR}}"
-fi
-# Faster nnU-Net v1 tumor inference: disable test-time augmentation unless CLARITY_TUMOR_EXTRA is set
-# (including to empty, to keep default nnU-Net TTA).
-if [ -z "${CLARITY_TUMOR_EXTRA+x}" ]; then
-  export CLARITY_TUMOR_EXTRA="--disable_tta"
 fi
 
 # Parent directory: each immediate subdirectory is one case/patient (any name).
@@ -78,8 +76,8 @@ if [[ ! -d "${WEIGHTS_DIR}" ]]; then
   exit 1
 fi
 
-if [[ -z "${RESULTS_FOLDER:-}" || -z "${nnUNet_preprocessed:-}" || -z "${nnUNet_raw_data_base:-}" ]]; then
-  echo "nnU-Net setup is not initialized."
+if [[ -z "${nnUNet_results:-}" || -z "${nnUNet_preprocessed:-}" || -z "${nnUNet_raw:-}" ]]; then
+  echo "nnU-Net v2 setup is not initialized."
   echo "Run this once first:"
   echo "  ./dev/setup_local_models.sh"
   exit 1
@@ -160,7 +158,7 @@ PY
   echo "  work dir: ${WORK_DIR}"
   echo "  weights: ${WEIGHTS_DIR}"
   echo "  device: ${DEVICE}"
-  echo "  tumor backend: nnUNet v1 Task135 (public KiTS21-pretrained checkpoint)"
+  echo "  tumor backend: nnUNet v2 Dataset123_Kits23 3d_fullres (KiTS23-trained checkpoint)"
 
   # Set CLARITY_REUSE_CACHED=1 to skip DICOM/TotalSegmentator/tumor when outputs already exist under WORK_DIR (faster iteration on SWP inference).
   #
@@ -178,9 +176,9 @@ PY
     --input "${SERIES_DIR}"
     --work-dir "${WORK_DIR}"
     --weights-dir "${WEIGHTS_DIR}"
-    --tumor-mode nnunetv1
-    --tumor-task-id 135
-    --tumor-model 3d_cascade_fullres
+    --tumor-mode nnunetv2
+    --tumor-dataset-id Dataset123_Kits23
+    --tumor-configuration 3d_fullres
     --device "${DEVICE}"
     --dicom-backend "${_db}"
   )

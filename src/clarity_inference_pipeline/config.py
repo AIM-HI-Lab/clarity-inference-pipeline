@@ -35,8 +35,8 @@ class TotalSegmentatorConfig:
 class TumorSegmentationConfig:
     """Settings for tumor segmentation (external CLI or script)."""
 
-    binary: str = "clarity-nnunet-predict"
-    mode: str = "nnunetv1"
+    binary: str = "nnUNetv2_predict"
+    mode: str = "nnunetv2"
     task_id: str = "135"
     model: str = "3d_cascade_fullres"
     dataset_id: str = "Dataset123_Kits23"
