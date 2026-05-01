@@ -8,9 +8,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile
 from typing import Any
 
 import boto3
+import pydicom
 import typer
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
@@ -139,11 +141,28 @@ def _iter_submission_ids(s3_client: Any, *, bucket: str, prefix_root: str) -> li
 def _submission_has_dicom(s3_client: Any, *, bucket: str, input_prefix: str) -> bool:
     paginator = s3_client.get_paginator("list_objects_v2")
     page_iterator = paginator.paginate(Bucket=bucket, Prefix=input_prefix)
+    sampled: list[dict[str, Any]] = []
     for page in page_iterator:
         for obj in page.get("Contents", []):
             key = obj.get("Key", "")
             if key.lower().endswith(".dcm"):
                 return True
+            if key.endswith("/"):
+                continue
+            sampled.append(obj)
+
+    # Fallback for extensionless PACS/CD exports: sample small files and probe with pydicom.
+    sampled = sorted(sampled, key=lambda row: int(row.get("Size") or 0))[:20]
+    for obj in sampled:
+        key = obj.get("Key", "")
+        try:
+            with NamedTemporaryFile(suffix=".dcm") as tmp:
+                _with_retries(lambda: s3_client.download_file(bucket, key, tmp.name))
+                ds = pydicom.dcmread(tmp.name, stop_before_pixels=True, force=True)
+                if getattr(ds, "StudyInstanceUID", None):
+                    return True
+        except Exception:  # noqa: BLE001
+            continue
     return False
 
 
@@ -305,6 +324,7 @@ def _process_submission(
     fail_on_empty_tumor: bool,
     pipeline_version: str,
     delete_input_after_success: bool,
+    auto_select_series: bool,
 ) -> None:
     write_result_json(
         s3_client,
@@ -332,7 +352,11 @@ def _process_submission(
             local_input_root=input_root,
         )
         if n_downloaded == 0:
-            raise RuntimeError("No input files downloaded from submission input prefix.")
+            raise RuntimeError(
+                "No DICOM files were found in this submission. Check that you uploaded the correct study "
+                "folder and that files have .dcm extensions. If your DICOM CD uses extensionless files "
+                "(e.g., IM-0001-0001), rename them with a .dcm extension before uploading."
+            )
         _log("info", "download_complete", submission_id=submission.submission_id, files=n_downloaded)
 
         cfg = build_pipeline_config(
@@ -351,6 +375,7 @@ def _process_submission(
             skip_inference=False,
             reuse_cached_artifacts=False,
             continue_on_empty_tumor=not fail_on_empty_tumor,
+            auto_select_series=auto_select_series,
             dicom_backend=dicom_backend,
             dcm2niix_binary=dcm2niix_binary,
         )
@@ -361,7 +386,14 @@ def _process_submission(
         clarity_case_count = _read_clarity_case_count(pipeline_workspace)
         if clarity_case_count == 0:
             raise RuntimeError(
-                "No series in this submission produced tumor voxels for CLARITY scoring."
+                "Processing completed but no series produced a scoreable tumor mask. "
+                "No renal tumor was detected in the segmentation. Possible causes: (1) the tumor is too small "
+                "for automated detection at current resolution; (2) the CT phase is unenhanced or incorrect — "
+                "use corticomedullary or nephrographic phase; (3) post-operative scan — use a pre-operative CT. "
+                "If you believe a tumor is present, contact us with the case label for manual review. "
+                "No kidney structures were detected in the CT. The scan may not cover the kidneys, may be a "
+                "non-abdominal CT, or the image quality may be insufficient for automated segmentation. Confirm "
+                "the scan is a full abdominal CT covering both kidneys."
             )
 
         predictions_path = pipeline_workspace / "predictions" / "predictions.json"
@@ -403,6 +435,7 @@ def _run_iteration(
     max_cases: int | None,
     delete_input_after_success: bool,
     delete_input_after_failure: bool,
+    auto_select_series: bool,
 ) -> int:
     pending = list_pending_submissions(s3_client, bucket=bucket, prefix_root=prefix_root)
     if max_cases is not None:
@@ -426,9 +459,31 @@ def _run_iteration(
                 fail_on_empty_tumor=fail_on_empty_tumor,
                 pipeline_version=pipeline_version,
                 delete_input_after_success=delete_input_after_success,
+                auto_select_series=auto_select_series,
             )
+        except RuntimeError as exc:
+            err = str(exc).strip() or _safe_error_message(exc)
+            _log("error", "submission_failed", submission_id=submission.submission_id, error=err)
+            write_result_json(
+                s3_client,
+                bucket=bucket,
+                result_key=submission.result_key,
+                submission_id=submission.submission_id,
+                status="failed",
+                pipeline_version=pipeline_version,
+                message=err,
+                clarity_score=None,
+            )
+            if delete_input_after_failure:
+                deleted = delete_input_objects(s3_client, bucket=bucket, input_prefix=submission.input_prefix)
+                _log(
+                    "info",
+                    "input_deleted_after_failure",
+                    submission_id=submission.submission_id,
+                    deleted=deleted,
+                )
         except Exception as exc:  # noqa: BLE001
-            err = _safe_error_message(exc)
+            err = f"Unexpected pipeline error — {_safe_error_message(exc)}"
             _log("error", "submission_failed", submission_id=submission.submission_id, error=err)
             write_result_json(
                 s3_client,
@@ -510,6 +565,12 @@ def run(
         "--delete-input-after-failure/--no-delete-input-after-failure",
         envvar="CLARITY_DELETE_INPUT_AFTER_FAILURE",
     ),
+    auto_select_series: bool = typer.Option(
+        True,
+        "--auto-select-series/--no-auto-select-series",
+        envvar="CLARITY_AUTO_SELECT_SERIES",
+        help="Auto-select one best CT series per submission (recommended).",
+    ),
     pipeline_version: str = typer.Option(
         __version__,
         "--pipeline-version",
@@ -538,6 +599,7 @@ def run(
         dicom_backend=dicom_backend,
         dcm2niix_binary=dcm2niix_binary,
         fail_on_empty_tumor=fail_on_empty_tumor,
+        auto_select_series=auto_select_series,
     )
 
     while True:
@@ -555,6 +617,7 @@ def run(
             max_cases=max_cases,
             delete_input_after_success=delete_input_after_success,
             delete_input_after_failure=delete_input_after_failure,
+            auto_select_series=auto_select_series,
         )
         if once:
             _log("info", "worker_exit_once")

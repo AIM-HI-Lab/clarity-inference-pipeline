@@ -12,7 +12,7 @@ from typing import Any
 from . import __version__
 from .config import DicomPaths, PipelineConfig
 from .clarity import run_clarity_inference
-from .dicom import discover_series_roots, run_dcm2niix, stage_series_for_conversion
+from .dicom import discover_series_roots, run_dcm2niix, select_best_series, stage_series_for_conversion
 from .dicom_sitk import convert_staged_dicom_to_nifti
 from .mask_adaptation import adapt_masks, swp_segmentation_has_tumor_voxels
 from .nifti_ct import select_primary_ct_nifti, write_nnunet_compatible_nifti
@@ -91,7 +91,11 @@ def run_pipeline(
 
     series_list = list(discover_series_roots(config.dicom.input_dir))
     if not series_list:
-        raise FileNotFoundError(f"No DICOM series found under {config.dicom.input_dir}")
+        raise RuntimeError(
+            "No DICOM files were found in this submission. Check that you uploaded the correct study folder "
+            "and that files have .dcm extensions. If your DICOM CD uses extensionless files "
+            "(e.g., IM-0001-0001), rename them with a .dcm extension before uploading."
+        )
 
     _pipeline_log(f"Found {len(series_list)} DICOM series under {config.dicom.input_dir}")
 
@@ -100,13 +104,19 @@ def run_pipeline(
         if not selected_series:
             raise ValueError(f"No series with SeriesInstanceUID={series_instance_uid!r}")
     else:
-        selected_series = series_list
-        if len(selected_series) > 1:
-            warnings.warn(
-                f"Processing {len(selected_series)} DICOM series under {config.dicom.input_dir}. "
-                "Use --series-uid to limit to one series.",
-                stacklevel=2,
-            )
+        if config.auto_select_series:
+            best, reasons = select_best_series(series_list)
+            selected_series = [best]
+            for reason in reasons:
+                _pipeline_log(f"Series selection: {reason}")
+        else:
+            selected_series = series_list
+            if len(selected_series) > 1:
+                warnings.warn(
+                    f"Processing {len(selected_series)} DICOM series under {config.dicom.input_dir}. "
+                    "Use --series-uid to limit to one series.",
+                    stacklevel=2,
+                )
 
     processed_case_ids: list[str] = []
     clarity_case_ids: list[str] = []
@@ -194,13 +204,24 @@ def run_pipeline(
             if config.phase_gating.enabled:
                 _pipeline_log("  Phase gating…")
                 pg_out = layout["phase_gating"] / series.series_instance_uid
-                working_nifti_dir = run_phase_gating(nifti_sub, pg_out, config.phase_gating)
+                try:
+                    working_nifti_dir = run_phase_gating(nifti_sub, pg_out, config.phase_gating)
+                except Exception as e:
+                    raise RuntimeError(
+                        "The CT series found appears to be unenhanced or an incorrect phase for renal tumor "
+                        "scoring. CLARITY requires a corticomedullary (30–60 s post-contrast) or nephrographic "
+                        "(80–120 s post-contrast) phase. Please re-upload the correct contrast phase."
+                    ) from e
                 case_steps.append("phase_gating")
                 case_artifacts["phase_gating_output"] = str(working_nifti_dir)
                 try:
                     primary_nifti = find_primary_nifti(working_nifti_dir)
                 except FileNotFoundError:
-                    primary_nifti = find_primary_nifti(nifti_sub)
+                    raise RuntimeError(
+                        "The CT series found appears to be unenhanced or an incorrect phase for renal tumor "
+                        "scoring. CLARITY requires a corticomedullary (30–60 s post-contrast) or nephrographic "
+                        "(80–120 s post-contrast) phase. Please re-upload the correct contrast phase."
+                    ) from None
                 case_artifacts["primary_nifti_after_gating"] = str(primary_nifti)
                 _stage_ct_nifti_for_downstream(primary_nifti, case_paths)
 
@@ -253,8 +274,10 @@ def run_pipeline(
             )
 
         if not kidney_mask.exists():
-            raise FileNotFoundError(
-                f"Expected kidney mask at {kidney_mask}. Configure TotalSegmentator to produce it."
+            raise RuntimeError(
+                "No kidney structures were detected in the CT. The scan may not cover the kidneys, may be a "
+                "non-abdominal CT, or the image quality may be insufficient for automated segmentation. Confirm "
+                "the scan is a full abdominal CT covering both kidneys."
             )
 
         _pipeline_log("  Mask adaptation (kidney + tumor → segmentation)…")
@@ -289,13 +312,11 @@ def run_pipeline(
                     )
                 else:
                     raise RuntimeError(
-                        "Combined segmentation has no tumor voxels (SWP label 2). "
-                        "CLARITY inference needs a non-empty tumor mask to sample patches. "
-                        f"Inspect nnU-Net output {case_paths['tumor_segmentation']} (unique labels) "
-                        f"and {adapted}. "
-                        "Common causes: nnU-Net predicts no tumor for this scan, wrong CT series "
-                        "(use a diagnostic CT, not SEG), or a bad/cached tumor run. "
-                        "Omit --fail-on-empty-tumor (default) to skip CLARITY for this case and continue."
+                        "No renal tumor was detected in the segmentation. Possible causes: (1) the tumor is too "
+                        "small for automated detection at current resolution; (2) the CT phase is unenhanced or "
+                        "incorrect — use corticomedullary or nephrographic phase; (3) post-operative scan — use "
+                        "a pre-operative CT. If you believe a tumor is present, contact us with the case label "
+                        "for manual review."
                     )
             else:
                 clarity_case_ids.append(case_id)
@@ -398,6 +419,7 @@ def run_pipeline(
             "reuse_cached_artifacts": config.reuse_cached_artifacts,
             "continue_on_empty_tumor": config.continue_on_empty_tumor,
             "dicom_backend": config.dicom_backend,
+            "auto_select_series": config.auto_select_series,
         },
     )
     steps_completed.append("manifest")

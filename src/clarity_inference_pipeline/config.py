@@ -109,6 +109,7 @@ class PipelineConfig:
     # When False, mask adaptation with no SWP label-2 voxels raises. When True, the run continues,
     # that case is omitted from swp_manifest.json, and CLARITY runs only on remaining cases.
     continue_on_empty_tumor: bool = True
+    auto_select_series: bool = True
     dicom_backend: str = "dcm2niix"
     """``dcm2niix`` (external CLI) or ``sitk`` (SimpleITK / GDCM in-process)."""
     dcm2niix_binary: str = "dcm2niix"

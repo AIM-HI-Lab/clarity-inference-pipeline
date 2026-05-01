@@ -3,10 +3,16 @@ from __future__ import annotations
 import json
 import unittest
 from datetime import datetime
+from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 
-from clarity_inference_pipeline.s3_worker import delete_input_objects, list_pending_submissions, write_result_json
+from clarity_inference_pipeline.s3_worker import (
+    _submission_has_dicom,
+    delete_input_objects,
+    list_pending_submissions,
+    write_result_json,
+)
 
 
 class _FakePaginator:
@@ -29,7 +35,12 @@ class _FakeS3Client:
             raise ValueError(name)
         pages = []
         for prefix, keys in self.pages.items():
-            contents = [{"Key": key} for key in keys]
+            contents = []
+            for row in keys:
+                if isinstance(row, dict):
+                    contents.append(row)
+                else:
+                    contents.append({"Key": row, "Size": 0})
             pages.append({"_prefix": prefix, "Contents": contents})
         return _FakePaginator(pages)
 
@@ -49,6 +60,12 @@ class _FakeS3Client:
         keys = [row["Key"] for row in Delete["Objects"]]
         self.deleted_batches.append(keys)
         return {"Deleted": [{"Key": key} for key in keys]}
+
+    def download_file(self, bucket: str, key: str, filename: str):
+        if key not in self.objects:
+            raise FileNotFoundError(key)
+        with open(filename, "wb") as fh:
+            fh.write(self.objects[key])
 
 
 class S3WorkerTests(unittest.TestCase):
@@ -118,6 +135,65 @@ class S3WorkerTests(unittest.TestCase):
                 "clarity/submissions/sub-1/input/b/2.dcm",
             ]],
         )
+
+    def test_submission_has_dicom_true_when_dcm_extension_present(self) -> None:
+        s3 = _FakeS3Client()
+        s3.pages = {
+            "clarity/submissions/sub-1/input/": [
+                {"Key": "clarity/submissions/sub-1/input/IM-0001-0001.dcm", "Size": 1024},
+            ]
+        }
+        self.assertTrue(
+            _submission_has_dicom(
+                s3,
+                bucket="bucket",
+                input_prefix="clarity/submissions/sub-1/input/",
+            )
+        )
+
+    def test_submission_has_dicom_fallback_sampling_success(self) -> None:
+        s3 = _FakeS3Client()
+        s3.pages = {
+            "clarity/submissions/sub-1/input/": [
+                {"Key": "clarity/submissions/sub-1/input/IM-0001-0001", "Size": 100},
+            ]
+        }
+        s3.objects = {"clarity/submissions/sub-1/input/IM-0001-0001": b"extensionless-dicom"}
+
+        fake_ds = type("DS", (), {"StudyInstanceUID": "1.2.3"})()
+        with patch("clarity_inference_pipeline.s3_worker.pydicom.dcmread", return_value=fake_ds):
+            self.assertTrue(
+                _submission_has_dicom(
+                    s3,
+                    bucket="bucket",
+                    input_prefix="clarity/submissions/sub-1/input/",
+                )
+            )
+
+    def test_submission_has_dicom_fallback_sampling_failure(self) -> None:
+        s3 = _FakeS3Client()
+        s3.pages = {
+            "clarity/submissions/sub-1/input/": [
+                {"Key": "clarity/submissions/sub-1/input/00000001", "Size": 100},
+                {"Key": "clarity/submissions/sub-1/input/readme.txt", "Size": 120},
+            ]
+        }
+        s3.objects = {
+            "clarity/submissions/sub-1/input/00000001": b"not-dicom-1",
+            "clarity/submissions/sub-1/input/readme.txt": b"not-dicom-2",
+        }
+
+        with patch(
+            "clarity_inference_pipeline.s3_worker.pydicom.dcmread",
+            side_effect=Exception("invalid"),
+        ):
+            self.assertFalse(
+                _submission_has_dicom(
+                    s3,
+                    bucket="bucket",
+                    input_prefix="clarity/submissions/sub-1/input/",
+                )
+            )
 
 
 if __name__ == "__main__":
