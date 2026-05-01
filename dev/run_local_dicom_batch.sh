@@ -33,6 +33,14 @@ if [[ -f "${ENV_FILE}" ]]; then
   source "${ENV_FILE}"
 fi
 
+# Optional overrides file: sourced after clarity_local_env.sh so site-specific paths
+# (e.g. shared cluster model dirs) can override the repo-local defaults.
+OVERRIDES_FILE="${REPO_ROOT}/dev/clarity_local_env_overrides.sh"
+if [[ -f "${OVERRIDES_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  source "${OVERRIDES_FILE}"
+fi
+
 if [[ -n "${CLARITY_NNUNET_V1_RAW:-}" ]]; then
   export nnUNet_raw_data_base="${CLARITY_NNUNET_V1_RAW}"
 fi

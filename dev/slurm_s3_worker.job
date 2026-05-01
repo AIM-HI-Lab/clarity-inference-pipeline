@@ -92,16 +92,6 @@ else
 fi
 cd "${REPO_ROOT}"
 
-# Load config file if present (safe for plain KEY=VALUE env files).
-CLARITY_S3_ENV_FILE="${CLARITY_S3_ENV_FILE:-${REPO_ROOT}/${CLARITY_S3_ENV_FILE_DEFAULT}}"
-if [[ -f "${CLARITY_S3_ENV_FILE}" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "${CLARITY_S3_ENV_FILE}"
-  set +a
-  echo "Loaded config from ${CLARITY_S3_ENV_FILE}"
-fi
-
 VENV_DIR="${CLARITY_VENV_DIR:-${REPO_ROOT}/.venv}"
 WORKER_BIN="${VENV_DIR}/bin/clarity-s3-worker"
 
@@ -111,9 +101,20 @@ export MKL_NUM_THREADS="${CPUS}"
 export OPENBLAS_NUM_THREADS="${CPUS}"
 export NUMEXPR_NUM_THREADS="${CPUS}"
 
+# Load auto-generated local env (sets CLARITY_NNUNET_V2_* to repo-local defaults).
 if [[ -f "${REPO_ROOT}/dev/clarity_local_env.sh" ]]; then
   # shellcheck disable=SC1091
   source "${REPO_ROOT}/dev/clarity_local_env.sh"
+fi
+
+# Load config file AFTER clarity_local_env.sh so user overrides (e.g. shared model paths) win.
+CLARITY_S3_ENV_FILE="${CLARITY_S3_ENV_FILE:-${REPO_ROOT}/${CLARITY_S3_ENV_FILE_DEFAULT}}"
+if [[ -f "${CLARITY_S3_ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${CLARITY_S3_ENV_FILE}"
+  set +a
+  echo "Loaded config from ${CLARITY_S3_ENV_FILE}"
 fi
 export PATH="${VENV_DIR}/bin:${PATH}"
 
