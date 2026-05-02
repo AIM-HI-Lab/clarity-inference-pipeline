@@ -42,6 +42,13 @@ TRANSIENT_ERROR_CODES = {
 }
 
 
+DEFAULT_MAX_TOTAL_BYTES = 3 * 1024 * 1024 * 1024
+DEFAULT_MAX_OBJECT_COUNT = 5000
+DEFAULT_MAX_SINGLE_OBJECT_BYTES = 512 * 1024 * 1024
+DEFAULT_PROCESSING_TTL_SECONDS = 6 * 60 * 60
+MIN_CT_SLICES = 30
+
+
 @dataclass(frozen=True)
 class SubmissionPaths:
     submission_id: str
@@ -49,6 +56,41 @@ class SubmissionPaths:
     input_prefix: str
     manifest_key: str
     result_key: str
+
+
+@dataclass(frozen=True)
+class S3InputObject:
+    key: str
+    size: int
+
+
+@dataclass(frozen=True)
+class SubmissionInventory:
+    objects: tuple[S3InputObject, ...]
+
+    @property
+    def object_count(self) -> int:
+        return len(self.objects)
+
+    @property
+    def total_bytes(self) -> int:
+        return sum(obj.size for obj in self.objects)
+
+
+@dataclass(frozen=True)
+class DicomProbe:
+    key: str
+    study_instance_uid: str
+    series_instance_uid: str
+    modality: str
+
+
+class WorkerFailure(RuntimeError):
+    def __init__(self, error_code: str, message: str, error_message: str) -> None:
+        super().__init__(error_message)
+        self.error_code = error_code
+        self.message = message
+        self.error_message = error_message
 
 
 def _utc_now_iso() -> str:
@@ -118,6 +160,44 @@ def _s3_key_exists(s3_client: Any, *, bucket: str, key: str) -> bool:
     return _with_retries(_call)
 
 
+def _read_s3_json(s3_client: Any, *, bucket: str, key: str) -> dict[str, Any] | None:
+    def _call() -> dict[str, Any] | None:
+        try:
+            resp = s3_client.get_object(Bucket=bucket, Key=key)
+        except ClientError as exc:
+            code = (exc.response.get("Error") or {}).get("Code", "")
+            if code in {"404", "NoSuchKey", "NotFound"}:
+                return None
+            raise
+        body = resp["Body"].read()
+        return json.loads(body.decode("utf-8"))
+
+    try:
+        return _with_retries(_call)
+    except Exception as exc:  # noqa: BLE001
+        _log("warning", "result_json_unreadable", key=key, error=_safe_error_message(exc))
+        return None
+
+
+def _parse_iso_datetime(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _is_processing_result_stale(payload: dict[str, Any] | None, *, ttl_seconds: int) -> bool:
+    if not payload or payload.get("status") != "processing":
+        return False
+    processed_at = _parse_iso_datetime(payload.get("processed_at"))
+    if processed_at is None:
+        return True
+    age_seconds = (datetime.now(timezone.utc) - processed_at).total_seconds()
+    return age_seconds >= ttl_seconds
+
+
 def _iter_submission_ids(s3_client: Any, *, bucket: str, prefix_root: str) -> list[str]:
     prefix = f"{_normalize_prefix(prefix_root)}/"
     paginator = s3_client.get_paginator("list_objects_v2")
@@ -136,6 +216,26 @@ def _iter_submission_ids(s3_client: Any, *, bucket: str, prefix_root: str) -> li
             if submission_id:
                 submission_ids.add(submission_id)
     return sorted(submission_ids)
+
+
+def _collect_submission_inventory(
+    s3_client: Any,
+    *,
+    bucket: str,
+    input_prefix: str,
+) -> SubmissionInventory:
+    paginator = s3_client.get_paginator("list_objects_v2")
+    objects: list[S3InputObject] = []
+    for page in paginator.paginate(Bucket=bucket, Prefix=input_prefix):
+        for obj in page.get("Contents", []):
+            key = obj.get("Key", "")
+            if not key or key.endswith("/") or not key.startswith(input_prefix):
+                continue
+            rel = key[len(input_prefix) :]
+            if not rel:
+                continue
+            objects.append(S3InputObject(key=key, size=int(obj.get("Size") or 0)))
+    return SubmissionInventory(objects=tuple(objects))
 
 
 def _submission_has_dicom(s3_client: Any, *, bucket: str, input_prefix: str) -> bool:
@@ -166,16 +266,26 @@ def _submission_has_dicom(s3_client: Any, *, bucket: str, input_prefix: str) -> 
     return False
 
 
-def list_pending_submissions(s3_client: Any, *, bucket: str, prefix_root: str) -> list[SubmissionPaths]:
+def list_pending_submissions(
+    s3_client: Any,
+    *,
+    bucket: str,
+    prefix_root: str,
+    processing_ttl_seconds: int = DEFAULT_PROCESSING_TTL_SECONDS,
+) -> list[SubmissionPaths]:
     pending: list[SubmissionPaths] = []
     for submission_id in _iter_submission_ids(s3_client, bucket=bucket, prefix_root=prefix_root):
         paths = _submission_paths(prefix_root, submission_id)
         has_result = _s3_key_exists(s3_client, bucket=bucket, key=paths.result_key)
         if has_result:
-            continue
-        has_dcm = _submission_has_dicom(s3_client, bucket=bucket, input_prefix=paths.input_prefix)
-        if has_dcm:
-            pending.append(paths)
+            result_payload = _read_s3_json(s3_client, bucket=bucket, key=paths.result_key)
+            if not _is_processing_result_stale(
+                result_payload,
+                ttl_seconds=processing_ttl_seconds,
+            ):
+                continue
+            _log("warning", "stale_processing_retry", submission_id=submission_id)
+        pending.append(paths)
     return pending
 
 
@@ -186,12 +296,16 @@ def _result_payload(
     pipeline_version: str,
     message: str,
     clarity_score: float | None,
+    error_code: str | None = None,
+    error_message: str | None = None,
 ) -> dict[str, Any]:
     return {
         "submission_id": submission_id,
         "status": status,
         "clarity_score": clarity_score,
         "message": message,
+        "error_code": error_code,
+        "error_message": error_message,
         "processed_at": _utc_now_iso(),
         "pipeline_version": pipeline_version,
     }
@@ -207,6 +321,8 @@ def write_result_json(
     pipeline_version: str,
     message: str,
     clarity_score: float | None,
+    error_code: str | None = None,
+    error_message: str | None = None,
 ) -> None:
     payload = _result_payload(
         submission_id=submission_id,
@@ -214,6 +330,8 @@ def write_result_json(
         pipeline_version=pipeline_version,
         message=message,
         clarity_score=clarity_score,
+        error_code=error_code,
+        error_message=error_message,
     )
     body = json.dumps(payload, indent=2).encode("utf-8")
     _with_retries(
@@ -224,6 +342,114 @@ def write_result_json(
             ContentType="application/json",
         )
     )
+
+
+def _enforce_upload_caps(
+    inventory: SubmissionInventory,
+    *,
+    max_total_bytes: int,
+    max_object_count: int,
+    max_single_object_bytes: int,
+) -> None:
+    if inventory.total_bytes > max_total_bytes:
+        raise WorkerFailure(
+            "UPLOAD_TOO_LARGE",
+            "Upload is too large.",
+            f"Submission total size {inventory.total_bytes} bytes exceeds limit {max_total_bytes} bytes.",
+        )
+    if inventory.object_count > max_object_count:
+        raise WorkerFailure(
+            "UPLOAD_TOO_LARGE",
+            "Upload has too many files.",
+            f"Submission object count {inventory.object_count} exceeds limit {max_object_count}.",
+        )
+    oversized = [obj for obj in inventory.objects if obj.size > max_single_object_bytes]
+    if oversized:
+        largest = max(oversized, key=lambda obj: obj.size)
+        raise WorkerFailure(
+            "UPLOAD_TOO_LARGE",
+            "Upload contains a file that is too large.",
+            f"Object {largest.key} is {largest.size} bytes; limit is {max_single_object_bytes} bytes.",
+        )
+
+
+def _probe_dicom_object(s3_client: Any, *, bucket: str, obj: S3InputObject) -> DicomProbe | None:
+    try:
+        with NamedTemporaryFile(suffix=".dcm") as tmp:
+            _with_retries(lambda: s3_client.download_file(bucket, obj.key, tmp.name))
+            ds = pydicom.dcmread(tmp.name, stop_before_pixels=True, force=True)
+    except Exception:  # noqa: BLE001
+        return None
+
+    study_uid = getattr(ds, "StudyInstanceUID", None)
+    series_uid = getattr(ds, "SeriesInstanceUID", None)
+    modality = str(getattr(ds, "Modality", "") or "").strip().upper()
+    if not study_uid or not series_uid or not modality:
+        return None
+    return DicomProbe(
+        key=obj.key,
+        study_instance_uid=str(study_uid),
+        series_instance_uid=str(series_uid),
+        modality=modality,
+    )
+
+
+def _validate_dicom_headers(
+    s3_client: Any,
+    *,
+    bucket: str,
+    inventory: SubmissionInventory,
+) -> None:
+    if inventory.object_count == 0:
+        raise WorkerFailure(
+            "NO_DICOM_FILES",
+            "No DICOM files were found.",
+            "No objects were present under the submission input prefix.",
+        )
+
+    probes: list[DicomProbe] = []
+    invalid_dcm_count = 0
+    for obj in inventory.objects:
+        probe = _probe_dicom_object(s3_client, bucket=bucket, obj=obj)
+        if probe is None:
+            if obj.key.lower().endswith(".dcm"):
+                invalid_dcm_count += 1
+            continue
+        probes.append(probe)
+
+    if not probes:
+        if invalid_dcm_count:
+            raise WorkerFailure(
+                "INVALID_DICOM",
+                "One or more DICOM files could not be read.",
+                f"{invalid_dcm_count} .dcm object(s) had unreadable or incomplete DICOM headers.",
+            )
+        raise WorkerFailure(
+            "NO_DICOM_FILES",
+            "No DICOM files were found.",
+            "No usable DICOM headers were found under the submission input prefix.",
+        )
+
+    ct_series_counts: dict[tuple[str, str], int] = {}
+    modalities = sorted({probe.modality for probe in probes})
+    for probe in probes:
+        if probe.modality == "CT":
+            key = (probe.study_instance_uid, probe.series_instance_uid)
+            ct_series_counts[key] = ct_series_counts.get(key, 0) + 1
+
+    if not ct_series_counts:
+        raise WorkerFailure(
+            "WRONG_MODALITY",
+            "Only CT studies are supported.",
+            f"No CT DICOM series found. Modalities present: {', '.join(modalities)}.",
+        )
+    if max(ct_series_counts.values()) < MIN_CT_SLICES:
+        raise WorkerFailure(
+            "INSUFFICIENT_CT_SERIES",
+            "The CT series does not have enough slices.",
+            f"Largest CT series has {max(ct_series_counts.values())} slice(s); "
+            f"minimum is {MIN_CT_SLICES}.",
+        )
 
 
 def _download_submission_input(
@@ -284,6 +510,42 @@ def _read_clarity_case_count(workspace_root: Path) -> int:
     return len(case_ids)
 
 
+def _classify_runtime_error(exc: RuntimeError) -> WorkerFailure:
+    detail = _safe_error_message(exc)
+    lowered = detail.lower()
+    if "no kidney structures were detected" in lowered:
+        return WorkerFailure(
+            "NO_KIDNEYS_DETECTED",
+            "No kidneys were detected in the CT.",
+            detail,
+        )
+    if "no renal tumor was detected" in lowered or "no scoreable tumor mask" in lowered:
+        return WorkerFailure(
+            "NO_TUMOR_DETECTED",
+            "No tumor was detected.",
+            detail,
+        )
+    if "modality=" in lowered and "requires ct" in lowered:
+        return WorkerFailure(
+            "WRONG_MODALITY",
+            "Only CT studies are supported.",
+            detail,
+        )
+    if "no ct series with sufficient slices" in lowered:
+        return WorkerFailure(
+            "INSUFFICIENT_CT_SERIES",
+            "The CT series does not have enough slices.",
+            detail,
+        )
+    if "no dicom" in lowered:
+        return WorkerFailure(
+            "NO_DICOM_FILES",
+            "No DICOM files were found.",
+            detail,
+        )
+    return WorkerFailure("PIPELINE_ERROR", "Processing failed.", detail)
+
+
 def delete_input_objects(s3_client: Any, *, bucket: str, input_prefix: str) -> int:
     paginator = s3_client.get_paginator("list_objects_v2")
     to_delete: list[dict[str, str]] = []
@@ -325,6 +587,9 @@ def _process_submission(
     pipeline_version: str,
     delete_input_after_success: bool,
     auto_select_series: bool,
+    max_total_bytes: int,
+    max_object_count: int,
+    max_single_object_bytes: int,
 ) -> None:
     write_result_json(
         s3_client,
@@ -336,6 +601,19 @@ def _process_submission(
         message="Processing started",
         clarity_score=None,
     )
+
+    inventory = _collect_submission_inventory(
+        s3_client,
+        bucket=bucket,
+        input_prefix=submission.input_prefix,
+    )
+    _enforce_upload_caps(
+        inventory,
+        max_total_bytes=max_total_bytes,
+        max_object_count=max_object_count,
+        max_single_object_bytes=max_single_object_bytes,
+    )
+    _validate_dicom_headers(s3_client, bucket=bucket, inventory=inventory)
 
     with TemporaryDirectory(prefix=f"clarity-submission-{submission.submission_id}-", dir=work_root) as tmp:
         submission_root = Path(tmp)
@@ -385,15 +663,10 @@ def _process_submission(
 
         clarity_case_count = _read_clarity_case_count(pipeline_workspace)
         if clarity_case_count == 0:
-            raise RuntimeError(
-                "Processing completed but no series produced a scoreable tumor mask. "
-                "No renal tumor was detected in the segmentation. Possible causes: (1) the tumor is too small "
-                "for automated detection at current resolution; (2) the CT phase is unenhanced or incorrect — "
-                "use corticomedullary or nephrographic phase; (3) post-operative scan — use a pre-operative CT. "
-                "If you believe a tumor is present, contact us with the case label for manual review. "
-                "No kidney structures were detected in the CT. The scan may not cover the kidneys, may be a "
-                "non-abdominal CT, or the image quality may be insufficient for automated segmentation. Confirm "
-                "the scan is a full abdominal CT covering both kidneys."
+            raise WorkerFailure(
+                "NO_TUMOR_DETECTED",
+                "No tumor was detected.",
+                "Processing completed, but no case produced a scoreable tumor mask.",
             )
 
         predictions_path = pipeline_workspace / "predictions" / "predictions.json"
@@ -436,8 +709,17 @@ def _run_iteration(
     delete_input_after_success: bool,
     delete_input_after_failure: bool,
     auto_select_series: bool,
+    processing_ttl_seconds: int = DEFAULT_PROCESSING_TTL_SECONDS,
+    max_total_bytes: int = DEFAULT_MAX_TOTAL_BYTES,
+    max_object_count: int = DEFAULT_MAX_OBJECT_COUNT,
+    max_single_object_bytes: int = DEFAULT_MAX_SINGLE_OBJECT_BYTES,
 ) -> int:
-    pending = list_pending_submissions(s3_client, bucket=bucket, prefix_root=prefix_root)
+    pending = list_pending_submissions(
+        s3_client,
+        bucket=bucket,
+        prefix_root=prefix_root,
+        processing_ttl_seconds=processing_ttl_seconds,
+    )
     if max_cases is not None:
         pending = pending[:max_cases]
     _log("info", "pending_scan_complete", pending_count=len(pending))
@@ -460,10 +742,18 @@ def _run_iteration(
                 pipeline_version=pipeline_version,
                 delete_input_after_success=delete_input_after_success,
                 auto_select_series=auto_select_series,
+                max_total_bytes=max_total_bytes,
+                max_object_count=max_object_count,
+                max_single_object_bytes=max_single_object_bytes,
             )
-        except RuntimeError as exc:
-            err = str(exc).strip() or _safe_error_message(exc)
-            _log("error", "submission_failed", submission_id=submission.submission_id, error=err)
+        except WorkerFailure as exc:
+            _log(
+                "error",
+                "submission_failed",
+                submission_id=submission.submission_id,
+                error_code=exc.error_code,
+                error=exc.error_message,
+            )
             write_result_json(
                 s3_client,
                 bucket=bucket,
@@ -471,8 +761,39 @@ def _run_iteration(
                 submission_id=submission.submission_id,
                 status="failed",
                 pipeline_version=pipeline_version,
-                message=err,
+                message=exc.message,
                 clarity_score=None,
+                error_code=exc.error_code,
+                error_message=exc.error_message,
+            )
+            if delete_input_after_failure:
+                deleted = delete_input_objects(s3_client, bucket=bucket, input_prefix=submission.input_prefix)
+                _log(
+                    "info",
+                    "input_deleted_after_failure",
+                    submission_id=submission.submission_id,
+                    deleted=deleted,
+                )
+        except RuntimeError as exc:
+            failure = _classify_runtime_error(exc)
+            _log(
+                "error",
+                "submission_failed",
+                submission_id=submission.submission_id,
+                error_code=failure.error_code,
+                error=failure.error_message,
+            )
+            write_result_json(
+                s3_client,
+                bucket=bucket,
+                result_key=submission.result_key,
+                submission_id=submission.submission_id,
+                status="failed",
+                pipeline_version=pipeline_version,
+                message=failure.message,
+                clarity_score=None,
+                error_code=failure.error_code,
+                error_message=failure.error_message,
             )
             if delete_input_after_failure:
                 deleted = delete_input_objects(s3_client, bucket=bucket, input_prefix=submission.input_prefix)
@@ -483,8 +804,14 @@ def _run_iteration(
                     deleted=deleted,
                 )
         except Exception as exc:  # noqa: BLE001
-            err = f"Unexpected pipeline error — {_safe_error_message(exc)}"
-            _log("error", "submission_failed", submission_id=submission.submission_id, error=err)
+            err = _safe_error_message(exc)
+            _log(
+                "error",
+                "submission_failed",
+                submission_id=submission.submission_id,
+                error_code="PIPELINE_ERROR",
+                error=err,
+            )
             write_result_json(
                 s3_client,
                 bucket=bucket,
@@ -492,8 +819,10 @@ def _run_iteration(
                 submission_id=submission.submission_id,
                 status="failed",
                 pipeline_version=pipeline_version,
-                message=err,
+                message="Processing failed.",
                 clarity_score=None,
+                error_code="PIPELINE_ERROR",
+                error_message=err,
             )
             if delete_input_after_failure:
                 deleted = delete_input_objects(s3_client, bucket=bucket, input_prefix=submission.input_prefix)
@@ -576,6 +905,31 @@ def run(
         "--pipeline-version",
         envvar="CLARITY_PIPELINE_VERSION",
     ),
+    processing_ttl_seconds: int = typer.Option(
+        DEFAULT_PROCESSING_TTL_SECONDS,
+        "--processing-ttl-seconds",
+        envvar="CLARITY_S3_PROCESSING_TTL_SECONDS",
+        min=1,
+        help="Retry submissions stuck in processing after this many seconds.",
+    ),
+    max_total_bytes: int = typer.Option(
+        DEFAULT_MAX_TOTAL_BYTES,
+        "--max-total-bytes",
+        envvar="CLARITY_S3_MAX_TOTAL_BYTES",
+        min=1,
+    ),
+    max_object_count: int = typer.Option(
+        DEFAULT_MAX_OBJECT_COUNT,
+        "--max-object-count",
+        envvar="CLARITY_S3_MAX_OBJECT_COUNT",
+        min=1,
+    ),
+    max_single_object_bytes: int = typer.Option(
+        DEFAULT_MAX_SINGLE_OBJECT_BYTES,
+        "--max-single-object-bytes",
+        envvar="CLARITY_S3_MAX_SINGLE_OBJECT_BYTES",
+        min=1,
+    ),
 ) -> None:
     """Run S3 worker once or continuously."""
 
@@ -600,6 +954,10 @@ def run(
         dcm2niix_binary=dcm2niix_binary,
         fail_on_empty_tumor=fail_on_empty_tumor,
         auto_select_series=auto_select_series,
+        processing_ttl_seconds=processing_ttl_seconds,
+        max_total_bytes=max_total_bytes,
+        max_object_count=max_object_count,
+        max_single_object_bytes=max_single_object_bytes,
     )
 
     while True:
@@ -618,6 +976,10 @@ def run(
             delete_input_after_success=delete_input_after_success,
             delete_input_after_failure=delete_input_after_failure,
             auto_select_series=auto_select_series,
+            processing_ttl_seconds=processing_ttl_seconds,
+            max_total_bytes=max_total_bytes,
+            max_object_count=max_object_count,
+            max_single_object_bytes=max_single_object_bytes,
         )
         if once:
             _log("info", "worker_exit_once")
