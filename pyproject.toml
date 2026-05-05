@@ -16,6 +16,8 @@ dependencies = [
     "nibabel",
     "scipy",
     "opencv-python-headless",
+    "imageio>=2.31.0",
+    "albumentations>=1.3.0",
     "typer>=0.9.0",
     "boto3",
     "pydicom>=2.4.0",
@@ -27,9 +29,7 @@ dev = [
     "pytest>=7.0",
     "ruff>=0.4.0",
 ]
-phase = [
-    # CCF tcga_phase gate uses ``swp.inference_v3`` (same stack as ccf-radiomics-pipelines); install in your env.
-]
+phase = []
 
 [project.scripts]
 clarity-pipeline = "clarity_inference_pipeline.cli:main"

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import tempfile
@@ -47,13 +46,7 @@ def assert_tcga_phase_allowed(
     Returns a small metadata dict for logging (prediction value, paths used).
     """
 
-    try:
-        from swp.inference_v3 import run_inference_on_batch  # type: ignore[import-not-found]
-    except ImportError as e:
-        raise RuntimeError(
-            "TCGA phase gating requires the `swp` package (``swp.inference_v3.run_inference_on_batch``) "
-            "installed in the same environment as the worker. This matches ccf-radiomics-pipelines."
-        ) from e
+    from .tcga_phase_swp import run_inference_on_batch
 
     model_dir = model_parent_dir / "tcga_phase"
     if not model_dir.is_dir():
@@ -82,7 +75,7 @@ def assert_tcga_phase_allowed(
         swp_dev = map_cuda.get((device or "").strip().lower(), device)
 
         with _temporary_swp_device(swp_dev):
-            run_inference_on_batch(
+            predictions = run_inference_on_batch(
                 img_pths=[case_root / "image.nii.gz"],
                 mask_pths=[tseg / "kidney_binary_mask.nii.gz"],
                 model_dir=model_dir,
@@ -93,12 +86,17 @@ def assert_tcga_phase_allowed(
                 model_name="tcga_phase",
             )
 
-        pred_path = case_root / "tcga_phase_prediction.json"
-        if not pred_path.is_file():
+        if not predictions:
             raise RuntimeError(
-                "TCGA phase model did not write tcga_phase_prediction.json; check swp install and model weights."
+                "TCGA phase inference produced no output (no .pth checkpoints in "
+                f"{model_dir}, or preprocessing failed)."
             )
-        pred_payload = json.loads(pred_path.read_text(encoding="utf-8"))
+        pred_payload = predictions.get(case_root.name)
+        if pred_payload is None:
+            raise RuntimeError(
+                "TCGA phase inference missing result for case "
+                f"{case_root.name!r}; keys={list(predictions.keys())!r}."
+            )
         pred_val = pred_payload.get("prediction")
         if pred_val == "Error" or pred_val is None:
             raise RuntimeError(
