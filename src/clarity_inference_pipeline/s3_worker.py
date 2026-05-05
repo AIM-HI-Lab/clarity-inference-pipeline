@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -822,6 +823,14 @@ def _process_submission(
             _log("info", "input_deleted_after_success", submission_id=submission.submission_id, deleted=deleted)
 
 
+def _submission_in_worker_shard(*, submission_id: str, worker_index: int, worker_count: int) -> bool:
+    """Deterministically shard submission IDs across workers."""
+
+    digest = hashlib.sha1(submission_id.encode("utf-8")).digest()
+    bucket = int.from_bytes(digest[:8], "big")
+    return (bucket % worker_count) == worker_index
+
+
 def _run_iteration(
     s3_client: Any,
     *,
@@ -845,6 +854,8 @@ def _run_iteration(
     max_series_fallback_attempts: int = DEFAULT_MAX_SERIES_FALLBACK_ATTEMPTS,
     tcga_phase_model_dir: Path | None = None,
     tcga_phase_cache_root: Path | None = None,
+    worker_index: int = 0,
+    worker_count: int = 1,
 ) -> int:
     pending = list_pending_submissions(
         s3_client,
@@ -852,6 +863,16 @@ def _run_iteration(
         prefix_root=prefix_root,
         processing_ttl_seconds=processing_ttl_seconds,
     )
+    if worker_count > 1:
+        pending = [
+            submission
+            for submission in pending
+            if _submission_in_worker_shard(
+                submission_id=submission.submission_id,
+                worker_index=worker_index,
+                worker_count=worker_count,
+            )
+        ]
     if max_cases is not None:
         pending = pending[:max_cases]
     _log("info", "pending_scan_complete", pending_count=len(pending))
@@ -1090,6 +1111,20 @@ def run(
             "(e.g. no kidneys / no tumor / phase mismatch). Use 1 to disable multi-series retries."
         ),
     ),
+    worker_index: int = typer.Option(
+        0,
+        "--worker-index",
+        envvar="CLARITY_S3_WORKER_INDEX",
+        min=0,
+        help="0-based worker shard index when running multiple worker processes.",
+    ),
+    worker_count: int = typer.Option(
+        1,
+        "--worker-count",
+        envvar="CLARITY_S3_WORKER_COUNT",
+        min=1,
+        help="Total number of worker shards. Use with --worker-index for safe parallel workers.",
+    ),
 ) -> None:
     """Run S3 worker once or continuously."""
 
@@ -1120,7 +1155,11 @@ def run(
         max_single_object_bytes=max_single_object_bytes,
         max_series_fallback_attempts=max_series_fallback_attempts,
         tcga_phase_model_dir=str(tcga_phase_model_dir) if tcga_phase_model_dir else None,
+        worker_index=worker_index,
+        worker_count=worker_count,
     )
+    if worker_index >= worker_count:
+        raise typer.BadParameter("--worker-index must be < --worker-count.")
 
     while True:
         _run_iteration(
@@ -1145,6 +1184,8 @@ def run(
             max_series_fallback_attempts=max_series_fallback_attempts,
             tcga_phase_model_dir=tcga_phase_model_dir,
             tcga_phase_cache_root=tcga_phase_cache_root,
+            worker_index=worker_index,
+            worker_count=worker_count,
         )
         if once:
             _log("info", "worker_exit_once")
