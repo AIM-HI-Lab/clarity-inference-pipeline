@@ -173,7 +173,15 @@ def predict(
         Optional[str],
         typer.Option(
             "--phase-entrypoint",
-            help="``module:callable`` or shell command; required when phase gating is enabled.",
+            help="``module:callable`` or shell command; pre–TotalSegmentator gating when set without --tcga-phase-model-parent.",
+        ),
+    ] = None,
+    tcga_phase_model_parent: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--tcga-phase-model-parent",
+            file_okay=False,
+            help="Parent directory containing ``tcga_phase`` SWP weights (ccf-radiomics-pipelines). Post–TotalSegmentator gate.",
         ),
     ] = None,
     mask_reference: Annotated[
@@ -207,16 +215,23 @@ def predict(
 ) -> None:
     """Run the full DICOM → CLARITY pipeline (DICOM ingest, segmentation, optional gating)."""
 
-    if enable_phase_gating and not phase_entrypoint:
-        raise typer.BadParameter("--phase-entrypoint is required when --enable-phase-gating is set.")
+    tcga_resolved: Path | None = None
+    if tcga_phase_model_parent is not None:
+        tcga_resolved = tcga_phase_model_parent.expanduser().resolve()
+
+    if enable_phase_gating and not phase_entrypoint and tcga_resolved is None:
+        raise typer.BadParameter(
+            "When --enable-phase-gating is set, provide --phase-entrypoint and/or --tcga-phase-model-parent."
+        )
 
     if checkpoint_dir is None and DEFAULT_MODEL_DIR.exists():
         checkpoint_dir = DEFAULT_MODEL_DIR
         checkpoint_dir_recursive = True
 
     phase_cfg = PhaseGatingConfig(
-        enabled=enable_phase_gating,
+        enabled=enable_phase_gating or tcga_resolved is not None,
         entrypoint=phase_entrypoint,
+        tcga_phase_model_parent=tcga_resolved,
     )
     totalseg_extra_args = resolve_totalsegmentator_extra_args(cli_extra=totalseg_extra)
     tumor_extra_args = resolve_tumor_extra_args(cli_extra=tumor_extra)

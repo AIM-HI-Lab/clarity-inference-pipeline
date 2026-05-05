@@ -56,6 +56,9 @@ class PhaseGatingConfig:
     entrypoint: str | None = None
     """Python module path (``pkg.module:callable``) or shell command name."""
 
+    tcga_phase_model_parent: Path | None = None
+    """If set (and ``enabled``), run CCF-style ``tcga_phase`` SWP classification **after** TotalSegmentator, using the kidney mask. Expects ``tcga_phase_model_parent / "tcga_phase"`` to exist (same layout as ccf-radiomics-pipelines)."""
+
     extra_args: Sequence[str] = ()
     kwargs: Mapping[str, Any] = field(default_factory=dict)
     """Passed to a callable entrypoint when using dynamic import."""

@@ -28,7 +28,7 @@ dev = [
     "ruff>=0.4.0",
 ]
 phase = [
-    # Optional: internal phase-model when available in your environment.
+    # CCF tcga_phase gate uses ``swp.inference_v3`` (same stack as ccf-radiomics-pipelines); install in your env.
 ]
 
 [project.scripts]

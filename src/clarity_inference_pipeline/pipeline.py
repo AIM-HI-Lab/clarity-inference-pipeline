@@ -17,6 +17,7 @@ from .dicom_sitk import convert_staged_dicom_to_nifti
 from .mask_adaptation import adapt_masks, swp_segmentation_has_tumor_voxels
 from .nifti_ct import select_primary_ct_nifti, write_nnunet_compatible_nifti
 from .phase_gating import run_phase_gating
+from .tcga_phase_gating import assert_tcga_phase_allowed
 from .totalsegmentator import run_totalsegmentator
 from .tumor_segmentation import run_tumor_segmentation
 from .workspace import (
@@ -140,11 +141,20 @@ def run_pipeline(
         skip_ts = reuse and kidney_mask.exists()
         skip_tumor_run = config.skip_tumor or (reuse and tumor_out.exists() and tumor_out.stat().st_size > 0)
 
+        use_tcga_phase_post_ts = bool(
+            config.phase_gating.enabled and config.phase_gating.tcga_phase_model_parent is not None
+        )
+        use_entrypoint_phase_pre_ts = bool(
+            config.phase_gating.enabled
+            and not use_tcga_phase_post_ts
+            and config.phase_gating.entrypoint
+        )
+
         if skip_dicom:
             _pipeline_log("  Reusing cached imaging + NIfTI workspace (skip DICOM staging & dcm2niix)…")
-            if config.phase_gating.enabled:
+            if config.phase_gating.enabled and use_entrypoint_phase_pre_ts:
                 warnings.warn(
-                    "reuse_cached_artifacts: ignoring --enable-phase-gating because imaging was reused from workspace.",
+                    "reuse_cached_artifacts: ignoring entrypoint phase gating because imaging was reused from workspace.",
                     stacklevel=2,
                 )
             try:
@@ -201,8 +211,8 @@ def run_pipeline(
             case_artifacts["primary_nifti"] = str(primary_nifti)
 
             working_nifti_dir = nifti_sub
-            if config.phase_gating.enabled:
-                _pipeline_log("  Phase gating…")
+            if use_entrypoint_phase_pre_ts:
+                _pipeline_log("  Phase gating (entrypoint, pre–TotalSegmentator)…")
                 pg_out = layout["phase_gating"] / series.series_instance_uid
                 try:
                     working_nifti_dir = run_phase_gating(nifti_sub, pg_out, config.phase_gating)
@@ -241,6 +251,28 @@ def run_pipeline(
                 f"{proc_ts.stderr or proc_ts.stdout}"
             )
         case_steps.append("totalsegmentator" if not skip_ts else "totalsegmentator_cached")
+
+        if use_tcga_phase_post_ts:
+            assert config.phase_gating.tcga_phase_model_parent is not None
+            _pipeline_log("  Phase gating (tcga_phase SWP, post–TotalSegmentator)…")
+            swp_dev = config.inference.device or config.totalsegmentator.device
+            try:
+                phase_meta = assert_tcga_phase_allowed(
+                    image_nii=case_paths["imaging"],
+                    kidney_mask_nii=kidney_mask,
+                    model_parent_dir=config.phase_gating.tcga_phase_model_parent,
+                    device=swp_dev,
+                )
+            except RuntimeError:
+                raise
+            except Exception as e:
+                raise RuntimeError(
+                    "The CT series found appears to be unenhanced or an incorrect phase for renal tumor "
+                    "scoring. CLARITY requires a corticomedullary (30–60 s post-contrast) or nephrographic "
+                    "(80–120 s post-contrast) phase. Please re-upload the correct contrast phase."
+                ) from e
+            case_steps.append("phase_gating_tcga_swp")
+            case_artifacts["tcga_phase_gating"] = phase_meta
 
         if not config.skip_tumor:
             if skip_tumor_run:
@@ -365,7 +397,15 @@ def run_pipeline(
         [
             "dicom_stage",
             "dicom_to_nifti",
-            "phase_gating" if config.phase_gating.enabled else "phase_gating_skipped",
+            (
+                "phase_gating_tcga_swp"
+                if config.phase_gating.enabled and config.phase_gating.tcga_phase_model_parent
+                else (
+                    "phase_gating"
+                    if config.phase_gating.enabled and config.phase_gating.entrypoint
+                    else "phase_gating_skipped"
+                )
+            ),
             "totalsegmentator",
             "tumor_segmentation" if not config.skip_tumor else "tumor_segmentation_skipped",
             "mask_adaptation",
@@ -414,6 +454,9 @@ def run_pipeline(
             "clarity_case_ids": clarity_case_ids,
             "series_instance_uid": series_instance_uid,
             "phase_gating_enabled": config.phase_gating.enabled,
+            "tcga_phase_model_parent": str(config.phase_gating.tcga_phase_model_parent)
+            if config.phase_gating.tcga_phase_model_parent
+            else None,
             "skip_tumor": config.skip_tumor,
             "skip_inference": config.skip_inference,
             "reuse_cached_artifacts": config.reuse_cached_artifacts,

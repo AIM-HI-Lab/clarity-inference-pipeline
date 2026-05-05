@@ -50,6 +50,15 @@ DEFAULT_PROCESSING_TTL_SECONDS = 6 * 60 * 60
 DEFAULT_MAX_SERIES_FALLBACK_ATTEMPTS = 5
 
 
+def phase_gating_config_for_worker(tcga_phase_model_parent: Path | None) -> PhaseGatingConfig:
+    """When a model parent path is set, enable CCF-style ``tcga_phase`` gating (expects ``…/tcga_phase``)."""
+
+    if tcga_phase_model_parent is None:
+        return PhaseGatingConfig()
+    resolved = tcga_phase_model_parent.expanduser().resolve()
+    return PhaseGatingConfig(enabled=True, tcga_phase_model_parent=resolved)
+
+
 @dataclass(frozen=True)
 class SubmissionPaths:
     submission_id: str
@@ -614,6 +623,7 @@ def _process_submission(
     dicom_backend: str,
     dcm2niix_binary: str,
     fail_on_empty_tumor: bool,
+    phase_gating: PhaseGatingConfig,
     pipeline_version: str,
     delete_input_after_success: bool,
     auto_select_series: bool,
@@ -674,7 +684,7 @@ def _process_submission(
             dicom_input=input_root,
             totalsegmentator=TotalSegmentatorConfig(device=device),
             tumor=TumorSegmentationConfig(),
-            phase_gating=PhaseGatingConfig(),
+            phase_gating=phase_gating,
             mask_adaptation=MaskAdaptationConfig(),
             inference=InferenceConfig(
                 checkpoint_dir=weights_dir,
@@ -814,6 +824,7 @@ def _run_iteration(
     dicom_backend: str,
     dcm2niix_binary: str,
     fail_on_empty_tumor: bool,
+    phase_gating: PhaseGatingConfig,
     pipeline_version: str,
     max_cases: int | None,
     delete_input_after_success: bool,
@@ -850,6 +861,7 @@ def _run_iteration(
                 dicom_backend=dicom_backend,
                 dcm2niix_binary=dcm2niix_binary,
                 fail_on_empty_tumor=fail_on_empty_tumor,
+                phase_gating=phase_gating,
                 pipeline_version=pipeline_version,
                 delete_input_after_success=delete_input_after_success,
                 auto_select_series=auto_select_series,
@@ -986,7 +998,17 @@ def run(
         False,
         "--fail-on-empty-tumor/--allow-empty-tumor",
         envvar="CLARITY_FAIL_ON_EMPTY_TUMOR",
-        help="Match clarity-pipeline behavior. Default allows empty tumor series to be skipped.",
+        help="Abort a series when nnU-Net yields no tumor voxels (recommended for strict portal scoring).",
+    ),
+    tcga_phase_model_parent: Path | None = typer.Option(
+        None,
+        "--tcga-phase-model-parent",
+        envvar="CLARITY_TCGA_PHASE_MODEL_PARENT",
+        file_okay=False,
+        help=(
+            "Directory that contains a ``tcga_phase`` SWP checkpoint folder (same layout as ccf-radiomics-pipelines). "
+            "When set, corticomedullary/nephrographic gating runs after TotalSegmentator."
+        ),
     ),
     poll_seconds: int = typer.Option(30, "--poll-seconds", envvar="CLARITY_S3_POLL_SECONDS"),
     once: bool = typer.Option(False, "--once", help="Run one scan/process cycle and exit."),
@@ -1056,6 +1078,7 @@ def run(
     """Run S3 worker once or continuously."""
 
     work_root.mkdir(parents=True, exist_ok=True)
+    phase_gating = phase_gating_config_for_worker(tcga_phase_model_parent)
 
     boto_config = Config(
         region_name=region,
@@ -1075,6 +1098,9 @@ def run(
         dicom_backend=dicom_backend,
         dcm2niix_binary=dcm2niix_binary,
         fail_on_empty_tumor=fail_on_empty_tumor,
+        tcga_phase_model_parent=str(tcga_phase_model_parent)
+        if tcga_phase_model_parent is not None
+        else None,
         auto_select_series=auto_select_series,
         processing_ttl_seconds=processing_ttl_seconds,
         max_total_bytes=max_total_bytes,
@@ -1094,6 +1120,7 @@ def run(
             dicom_backend=dicom_backend,
             dcm2niix_binary=dcm2niix_binary,
             fail_on_empty_tumor=fail_on_empty_tumor,
+            phase_gating=phase_gating,
             pipeline_version=pipeline_version,
             max_cases=max_cases,
             delete_input_after_success=delete_input_after_success,

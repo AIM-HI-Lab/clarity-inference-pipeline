@@ -13,6 +13,7 @@ from botocore.exceptions import ClientError
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import CTImageStorage, ExplicitVRLittleEndian, MRImageStorage, generate_uid
 
+from clarity_inference_pipeline.config import PhaseGatingConfig
 from clarity_inference_pipeline.dicom import MIN_CT_SLICES, DicomSeries
 from clarity_inference_pipeline.s3_worker import (
     _run_iteration,
@@ -157,6 +158,7 @@ def _run_once(s3: _FakeS3Client, *, work_root: Path, **kwargs) -> int:
         dicom_backend="sitk",
         dcm2niix_binary="dcm2niix",
         fail_on_empty_tumor=False,
+        phase_gating=PhaseGatingConfig(),
         pipeline_version="test-version",
         max_cases=None,
         delete_input_after_success=False,
