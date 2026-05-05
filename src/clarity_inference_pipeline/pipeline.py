@@ -266,9 +266,10 @@ def run_pipeline(
                 raise
             except Exception as e:
                 raise RuntimeError(
-                    "Automated contrast-phase scoring failed for this series. CLARITY is validated on "
-                    "corticomedullary and nephrographic phases only; ensure the upload is a suitable "
-                    "contrast-enhanced abdominal CT."
+                    "Automated contrast-phase scoring failed for this series. "
+                    "CLARITY is validated on corticomedullary and nephrographic phases only; "
+                    "ensure the upload is a suitable contrast-enhanced abdominal CT. "
+                    f"Underlying error: {e}"
                 ) from e
             case_artifacts["tcga_phase_prediction"] = phase_result.metadata_block
             case_steps.append("tcga_phase_prediction")

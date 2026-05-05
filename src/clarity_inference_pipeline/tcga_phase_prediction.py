@@ -52,19 +52,25 @@ def run_tcga_phase_prediction(
         raise FileNotFoundError(f"TCGA phase model directory not found: {resolved}")
 
     device = config.device
-    predictions = run_inference_on_batch(
-        img_pths=[ct_nifti.resolve()],
-        mask_pths=[kidney_mask_nifti.resolve()],
-        model_dir=resolved,
-        n_classes=4,
-        sampling_mode="weighted",
-        use_seg=True,
-        model_name="tcga_phase",
-        output_pth=cases_root.resolve(),
-        case_ids=[case_id],
-        cache_pth=config.cache_root.expanduser().resolve() if config.cache_root else None,
-        device=device,
-    )
+    try:
+        predictions = run_inference_on_batch(
+            img_pths=[ct_nifti.resolve()],
+            mask_pths=[kidney_mask_nifti.resolve()],
+            model_dir=resolved,
+            n_classes=4,
+            sampling_mode="weighted",
+            use_seg=True,
+            model_name="tcga_phase",
+            output_pth=cases_root.resolve(),
+            case_ids=[case_id],
+            cache_pth=config.cache_root.expanduser().resolve() if config.cache_root else None,
+            device=device,
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"TCGA phase inference crashed for case {case_id!r} "
+            f"(image={ct_nifti}, kidney_mask={kidney_mask_nifti}, model_dir={resolved}): {e}"
+        ) from e
     if not predictions:
         raise RuntimeError(
             f"TCGA phase prediction produced no output for case {case_id!r}. "
