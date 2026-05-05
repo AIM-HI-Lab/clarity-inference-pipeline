@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from clarity_inference_pipeline.dicom import DicomSeries, select_best_series
+from clarity_inference_pipeline.dicom import DicomSeries, rank_ct_series_candidates_for_fallback, select_best_series
 
 
 def _mk_series(uid: str, *, modality: str = "CT", slices: int = 50) -> DicomSeries:
@@ -131,6 +131,40 @@ class SeriesSelectionTests(unittest.TestCase):
         ):
             selected, _ = select_best_series([ct_small, ct_large])
         self.assertEqual(selected.series_instance_uid, "ct-large")
+
+    def test_rank_prefers_newer_study_when_heuristics_match(self) -> None:
+        old = _mk_series("ct-old", slices=50)
+        new = _mk_series("ct-new", slices=50)
+        mapping = {
+            old.files[0]: type(
+                "DS",
+                (),
+                {
+                    "SOPClassUID": "1.2.840.10008.5.1.4.1.1.2",
+                    "ImageType": ["ORIGINAL", "PRIMARY"],
+                    "ImageOrientationPatient": [1, 0, 0, 0, 1, 0],
+                    "StudyDate": "20200101",
+                    "StudyTime": "120000",
+                },
+            )(),
+            new.files[0]: type(
+                "DS",
+                (),
+                {
+                    "SOPClassUID": "1.2.840.10008.5.1.4.1.1.2",
+                    "ImageType": ["ORIGINAL", "PRIMARY"],
+                    "ImageOrientationPatient": [1, 0, 0, 0, 1, 0],
+                    "StudyDate": "20240601",
+                    "StudyTime": "120000",
+                },
+            )(),
+        }
+        with patch(
+            "clarity_inference_pipeline.dicom.pydicom.dcmread",
+            side_effect=lambda path, **kwargs: mapping[path],
+        ):
+            ranked, _ = rank_ct_series_candidates_for_fallback([old, new])
+        self.assertEqual([s.series_instance_uid for s in ranked], ["ct-new", "ct-old"])
 
     def test_raises_descriptive_error_when_none_survive(self) -> None:
         mr = _mk_series("mr", modality="MR", slices=80)

@@ -25,6 +25,7 @@ from .config import (
     TotalSegmentatorConfig,
     TumorSegmentationConfig,
 )
+from .dicom import MIN_CT_SLICES, discover_series_roots, rank_ct_series_candidates_for_fallback
 from .pipeline import build_pipeline_config, run_pipeline
 
 app = typer.Typer(name="clarity-s3-worker", help="Run CLARITY inference over S3 submissions.")
@@ -46,7 +47,7 @@ DEFAULT_MAX_TOTAL_BYTES = 3 * 1024 * 1024 * 1024
 DEFAULT_MAX_OBJECT_COUNT = 5000
 DEFAULT_MAX_SINGLE_OBJECT_BYTES = 512 * 1024 * 1024
 DEFAULT_PROCESSING_TTL_SECONDS = 6 * 60 * 60
-MIN_CT_SLICES = 30
+DEFAULT_MAX_SERIES_FALLBACK_ATTEMPTS = 5
 
 
 @dataclass(frozen=True)
@@ -546,6 +547,35 @@ def _classify_runtime_error(exc: RuntimeError) -> WorkerFailure:
     return WorkerFailure("PIPELINE_ERROR", "Processing failed.", detail)
 
 
+def _retryable_failed_series_attempt(exc: BaseException) -> bool:
+    """Whether trying another ranked CT series might recover from this failure."""
+
+    if isinstance(exc, WorkerFailure):
+        return exc.error_code == "NO_TUMOR_DETECTED"
+    if isinstance(exc, RuntimeError):
+        wf = _classify_runtime_error(exc)
+        if wf.error_code in {"NO_KIDNEYS_DETECTED", "NO_TUMOR_DETECTED"}:
+            return True
+        if wf.error_code != "PIPELINE_ERROR":
+            return False
+        detail = wf.error_message.lower()
+        needles = (
+            "corticomedullary",
+            "nephrographic",
+            "unenhanced",
+            "incorrect phase",
+            "renal tumor scoring",
+            "totalsegmentator failed",
+            "tumor segmentation failed",
+            "dcm2niix failed",
+            "simpleitk",
+            "dicom→nifti",
+            "dicom to nifti",
+        )
+        return any(n in detail for n in needles)
+    return False
+
+
 def delete_input_objects(s3_client: Any, *, bucket: str, input_prefix: str) -> int:
     paginator = s3_client.get_paginator("list_objects_v2")
     to_delete: list[dict[str, str]] = []
@@ -590,6 +620,7 @@ def _process_submission(
     max_total_bytes: int,
     max_object_count: int,
     max_single_object_bytes: int,
+    max_series_fallback_attempts: int,
 ) -> None:
     write_result_json(
         s3_client,
@@ -637,8 +668,9 @@ def _process_submission(
             )
         _log("info", "download_complete", submission_id=submission.submission_id, files=n_downloaded)
 
-        cfg = build_pipeline_config(
-            workspace_root=pipeline_workspace,
+        active_workspace = pipeline_workspace
+
+        base_cfg_kwargs = dict(
             dicom_input=input_root,
             totalsegmentator=TotalSegmentatorConfig(device=device),
             tumor=TumorSegmentationConfig(),
@@ -657,11 +689,89 @@ def _process_submission(
             dicom_backend=dicom_backend,
             dcm2niix_binary=dcm2niix_binary,
         )
-        _log("info", "pipeline_start", submission_id=submission.submission_id)
-        run_pipeline(cfg)
+
+        if max_series_fallback_attempts <= 1:
+            cfg = build_pipeline_config(
+                workspace_root=pipeline_workspace,
+                **base_cfg_kwargs,
+            )
+            _log("info", "pipeline_start", submission_id=submission.submission_id)
+            run_pipeline(cfg)
+        else:
+            series_list = list(discover_series_roots(input_root))
+            ranked, rank_reasons = rank_ct_series_candidates_for_fallback(series_list)
+            for detail in rank_reasons:
+                _log(
+                    "info",
+                    "series_fallback_rank",
+                    submission_id=submission.submission_id,
+                    detail=detail,
+                )
+            if not ranked:
+                raise RuntimeError(
+                    "No CT series with sufficient slices were found. The uploaded folder may be a patient-level "
+                    "folder containing only non-CT modalities (MRI, PET, dose reports), or all CT series had fewer "
+                    f"than {MIN_CT_SLICES} slices (scouts/localizers only). Upload one contrast-enhanced abdominal CT study folder."
+                )
+            attempts_budget = min(max_series_fallback_attempts, len(ranked))
+            last_error: BaseException | None = None
+            for attempt_idx in range(attempts_budget):
+                series = ranked[attempt_idx]
+                ws_try = submission_root / f"workspace_try_{attempt_idx}"
+                ws_try.mkdir(parents=True, exist_ok=True)
+                cfg = build_pipeline_config(workspace_root=ws_try, **base_cfg_kwargs)
+                _log(
+                    "info",
+                    "pipeline_start",
+                    submission_id=submission.submission_id,
+                    fallback_attempt=attempt_idx + 1,
+                    fallback_attempts_max=attempts_budget,
+                    series_instance_uid=series.series_instance_uid,
+                )
+                try:
+                    run_pipeline(cfg, series_instance_uid=series.series_instance_uid)
+                except RuntimeError as exc:
+                    last_error = exc
+                    if attempt_idx >= attempts_budget - 1 or not _retryable_failed_series_attempt(exc):
+                        raise
+                    _log(
+                        "warning",
+                        "series_fallback_retry",
+                        submission_id=submission.submission_id,
+                        series_instance_uid=series.series_instance_uid,
+                        error=_safe_error_message(exc),
+                    )
+                    continue
+
+                clarity_try = _read_clarity_case_count(ws_try)
+                if clarity_try == 0:
+                    tumor_miss = WorkerFailure(
+                        "NO_TUMOR_DETECTED",
+                        "No tumor was detected.",
+                        "Processing completed, but no case produced a scoreable tumor mask.",
+                    )
+                    last_error = tumor_miss
+                    if attempt_idx >= attempts_budget - 1 or not _retryable_failed_series_attempt(tumor_miss):
+                        raise tumor_miss
+                    _log(
+                        "warning",
+                        "series_fallback_retry",
+                        submission_id=submission.submission_id,
+                        series_instance_uid=series.series_instance_uid,
+                        reason="no_scoreable_tumor_mask",
+                    )
+                    continue
+
+                active_workspace = ws_try
+                break
+            else:
+                if last_error is not None:
+                    raise last_error
+                raise RuntimeError("Series fallback exhausted without completing inference.")
+
         _log("info", "pipeline_complete", submission_id=submission.submission_id)
 
-        clarity_case_count = _read_clarity_case_count(pipeline_workspace)
+        clarity_case_count = _read_clarity_case_count(active_workspace)
         if clarity_case_count == 0:
             raise WorkerFailure(
                 "NO_TUMOR_DETECTED",
@@ -669,7 +779,7 @@ def _process_submission(
                 "Processing completed, but no case produced a scoreable tumor mask.",
             )
 
-        predictions_path = pipeline_workspace / "predictions" / "predictions.json"
+        predictions_path = active_workspace / "predictions" / "predictions.json"
         clarity_score = _extract_clarity_score(predictions_path)
         write_result_json(
             s3_client,
@@ -713,6 +823,7 @@ def _run_iteration(
     max_total_bytes: int = DEFAULT_MAX_TOTAL_BYTES,
     max_object_count: int = DEFAULT_MAX_OBJECT_COUNT,
     max_single_object_bytes: int = DEFAULT_MAX_SINGLE_OBJECT_BYTES,
+    max_series_fallback_attempts: int = DEFAULT_MAX_SERIES_FALLBACK_ATTEMPTS,
 ) -> int:
     pending = list_pending_submissions(
         s3_client,
@@ -745,6 +856,7 @@ def _run_iteration(
                 max_total_bytes=max_total_bytes,
                 max_object_count=max_object_count,
                 max_single_object_bytes=max_single_object_bytes,
+                max_series_fallback_attempts=max_series_fallback_attempts,
             )
         except WorkerFailure as exc:
             _log(
@@ -930,6 +1042,16 @@ def run(
         envvar="CLARITY_S3_MAX_SINGLE_OBJECT_BYTES",
         min=1,
     ),
+    max_series_fallback_attempts: int = typer.Option(
+        DEFAULT_MAX_SERIES_FALLBACK_ATTEMPTS,
+        "--max-series-fallback-attempts",
+        envvar="CLARITY_S3_MAX_SERIES_FALLBACK_ATTEMPTS",
+        min=1,
+        help=(
+            "Try up to N ranked CT series when the previous candidate fails with a retryable clinical/tool error "
+            "(e.g. no kidneys / no tumor / phase mismatch). Use 1 to disable multi-series retries."
+        ),
+    ),
 ) -> None:
     """Run S3 worker once or continuously."""
 
@@ -958,6 +1080,7 @@ def run(
         max_total_bytes=max_total_bytes,
         max_object_count=max_object_count,
         max_single_object_bytes=max_single_object_bytes,
+        max_series_fallback_attempts=max_series_fallback_attempts,
     )
 
     while True:
@@ -980,6 +1103,7 @@ def run(
             max_total_bytes=max_total_bytes,
             max_object_count=max_object_count,
             max_single_object_bytes=max_single_object_bytes,
+            max_series_fallback_attempts=max_series_fallback_attempts,
         )
         if once:
             _log("info", "worker_exit_once")

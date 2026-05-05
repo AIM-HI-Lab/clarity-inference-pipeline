@@ -7,12 +7,16 @@ import shutil
 import subprocess
 from math import sqrt
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
 import pydicom
 
 from .subprocess_util import run_subprocess_logged
+
+
+MIN_CT_SLICES = 30
 
 
 @dataclass(frozen=True)
@@ -113,6 +117,39 @@ def _read_first_dataset(series: DicomSeries) -> pydicom.dataset.FileDataset | No
         return None
 
 
+def _study_datetime_from_dataset(ds: pydicom.dataset.FileDataset | None) -> datetime:
+    """Parse StudyDate (+ StudyTime) for sorting; missing values sort oldest."""
+
+    if ds is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    raw_d = getattr(ds, "StudyDate", None)
+    raw_t = getattr(ds, "StudyTime", None)
+    if raw_d is None or str(raw_d).strip() in {"", "None"}:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    d_compact = "".join(ch for ch in str(raw_d) if ch.isdigit())[:8]
+    if len(d_compact) != 8:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    year = int(d_compact[0:4])
+    month = int(d_compact[4:6])
+    day = int(d_compact[6:8])
+
+    t_compact = "".join(ch for ch in str(raw_t or "") if ch.isdigit())
+    hour = minute = second = 0
+    micro = 0
+    if len(t_compact) >= 6:
+        hour = int(t_compact[0:2])
+        minute = int(t_compact[2:4])
+        second = int(t_compact[4:6])
+    if len(t_compact) > 6:
+        frac = (t_compact[6:] + "000000")[:6]
+        micro = int(frac)
+
+    try:
+        return datetime(year, month, day, hour, minute, second, micro, tzinfo=timezone.utc)
+    except ValueError:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
 def _image_type_primary_score(image_type: object) -> int:
     if not image_type:
         return 0
@@ -154,6 +191,83 @@ def _axial_orientation_score(iop: object) -> int:
     return 0
 
 
+def iter_eligible_ct_series_with_scores(
+    series_list: list[DicomSeries],
+) -> tuple[list[tuple[DicomSeries, pydicom.dataset.FileDataset | None, int, int, int]], list[str]]:
+    """
+    Filter to CT series that meet pipeline thresholds and attach heuristic scores.
+
+    Returns rows ``(series, first_dataset, primary_score, axial_score, slice_count)`` plus log reasons.
+    """
+
+    reasons: list[str] = []
+    eligible: list[tuple[DicomSeries, pydicom.dataset.FileDataset | None, int, int, int]] = []
+
+    if not series_list:
+        return [], reasons
+
+    for series in series_list:
+        ds = _read_first_dataset(series)
+        modality = (series.modality or "").strip().upper()
+        if modality != "CT":
+            reasons.append(
+                f"Rejected {series.series_instance_uid}: modality={series.modality or 'unknown'} (requires CT)."
+            )
+            continue
+        if series.file_count < MIN_CT_SLICES:
+            reasons.append(
+                f"Rejected {series.series_instance_uid}: only {series.file_count} slices (<{MIN_CT_SLICES})."
+            )
+            continue
+        sop_class_uid = str(getattr(ds, "SOPClassUID", "") or "")
+        if sop_class_uid in _NON_IMAGE_SOP_CLASS_UIDS:
+            reasons.append(
+                f"Rejected {series.series_instance_uid}: SOPClassUID={sop_class_uid} is non-image."
+            )
+            continue
+
+        primary_score = _image_type_primary_score(getattr(ds, "ImageType", None))
+        axial_score = _axial_orientation_score(getattr(ds, "ImageOrientationPatient", None))
+        eligible.append((series, ds, primary_score, axial_score, series.file_count))
+        reasons.append(
+            f"Candidate {series.series_instance_uid}: primary_score={primary_score}, "
+            f"axial_score={axial_score}, slices={series.file_count}."
+        )
+
+    return eligible, reasons
+
+
+def rank_ct_series_candidates_for_fallback(
+    series_list: list[DicomSeries],
+) -> tuple[list[DicomSeries], list[str]]:
+    """
+    Order CT candidates for bounded retries: newest StudyDate first, then imaging heuristics.
+
+    Uses the same primary / axial / slice lexicographic ordering as :func:`select_best_series`
+    within ties on study timestamp (missing StudyDate sorts last).
+    """
+
+    eligible, reasons = iter_eligible_ct_series_with_scores(series_list)
+    if not eligible:
+        return [], reasons
+
+    ranked_rows = sorted(
+        eligible,
+        key=lambda row: (
+            -_study_datetime_from_dataset(row[1]).timestamp(),
+            -row[2],
+            -row[3],
+            -row[4],
+            row[0].series_instance_uid,
+        ),
+    )
+    reasons.append(
+        "Fallback ranking: newest StudyDate (StudyTime when present) first, "
+        "then primary_score, axial_score, slice count, then SeriesInstanceUID."
+    )
+    return [row[0] for row in ranked_rows], reasons
+
+
 def select_best_series(series_list: list[DicomSeries]) -> tuple[DicomSeries, list[str]]:
     """
     Select one best primary contrast-enhanced axial CT series candidate.
@@ -167,69 +281,36 @@ def select_best_series(series_list: list[DicomSeries]) -> tuple[DicomSeries, lis
         raise RuntimeError(
             "No CT series with sufficient slices were found. The uploaded folder may be a patient-level "
             "folder containing only non-CT modalities (MRI, PET, dose reports), or all CT series had fewer "
-            "than 30 slices (scouts/localizers only). Upload one contrast-enhanced abdominal CT study folder."
+            f"than {MIN_CT_SLICES} slices (scouts/localizers only). Upload one contrast-enhanced abdominal CT study folder."
         )
 
-    candidates: list[tuple[DicomSeries, pydicom.dataset.FileDataset | None]] = []
-    for series in series_list:
-        ds = _read_first_dataset(series)
-        modality = (series.modality or "").strip().upper()
-        if modality != "CT":
-            reasons.append(
-                f"Rejected {series.series_instance_uid}: modality={series.modality or 'unknown'} (requires CT)."
-            )
-            continue
-        if series.file_count < 30:
-            reasons.append(
-                f"Rejected {series.series_instance_uid}: only {series.file_count} slices (<30)."
-            )
-            continue
-        sop_class_uid = str(getattr(ds, "SOPClassUID", "") or "")
-        if sop_class_uid in _NON_IMAGE_SOP_CLASS_UIDS:
-            reasons.append(
-                f"Rejected {series.series_instance_uid}: SOPClassUID={sop_class_uid} is non-image."
-            )
-            continue
-        candidates.append((series, ds))
+    eligible, filter_reasons = iter_eligible_ct_series_with_scores(series_list)
+    reasons.extend(filter_reasons)
 
-    if not candidates:
+    if not eligible:
         raise RuntimeError(
             "No CT series with sufficient slices were found. The uploaded folder may be a patient-level "
             "folder containing only non-CT modalities (MRI, PET, dose reports), or all CT series had fewer "
-            "than 30 slices (scouts/localizers only). Upload one contrast-enhanced abdominal CT study folder."
+            f"than {MIN_CT_SLICES} slices (scouts/localizers only). Upload one contrast-enhanced abdominal CT study folder."
         )
 
-    if len(candidates) == 1:
-        chosen = candidates[0][0]
+    if len(eligible) == 1:
+        chosen = eligible[0][0]
         reasons.append(
             f"Selected {chosen.series_instance_uid}: only one CT candidate remained after hard filters."
         )
         return chosen, reasons
 
-    scored: list[tuple[int, int, int, DicomSeries]] = []
-    for series, ds in candidates:
-        primary_score = _image_type_primary_score(getattr(ds, "ImageType", None))
-        axial_score = _axial_orientation_score(getattr(ds, "ImageOrientationPatient", None))
-        scored.append((primary_score, axial_score, series.file_count, series))
-        reasons.append(
-            f"Candidate {series.series_instance_uid}: primary_score={primary_score}, "
-            f"axial_score={axial_score}, slices={series.file_count}."
-        )
-
-    best_primary = max(row[0] for row in scored)
-    scored = [row for row in scored if row[0] == best_primary]
-    reasons.append(f"Step 2 kept {len(scored)} series with highest primary_score={best_primary}.")
-
-    best_axial = max(row[1] for row in scored)
-    scored = [row for row in scored if row[1] == best_axial]
-    reasons.append(f"Step 3 kept {len(scored)} series with highest axial_score={best_axial}.")
-
-    best_slices = max(row[2] for row in scored)
-    scored = [row for row in scored if row[2] == best_slices]
-    reasons.append(f"Step 4 kept {len(scored)} series with max slices={best_slices}.")
-
-    selected = sorted(scored, key=lambda row: row[3].series_instance_uid)[0][3]
-    reasons.append(f"Selected {selected.series_instance_uid} as best CT series.")
+    sorted_eligible = sorted(
+        eligible,
+        key=lambda row: (-row[2], -row[3], -row[4], row[0].series_instance_uid),
+    )
+    selected = sorted_eligible[0][0]
+    reasons.append(
+        f"Selected {selected.series_instance_uid} as best CT series "
+        f"(primary_score={sorted_eligible[0][2]}, axial_score={sorted_eligible[0][3]}, "
+        f"slices={sorted_eligible[0][4]})."
+    )
     return selected, reasons
 
 

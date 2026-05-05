@@ -13,8 +13,8 @@ from botocore.exceptions import ClientError
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import CTImageStorage, ExplicitVRLittleEndian, MRImageStorage, generate_uid
 
+from clarity_inference_pipeline.dicom import MIN_CT_SLICES, DicomSeries
 from clarity_inference_pipeline.s3_worker import (
-    MIN_CT_SLICES,
     _run_iteration,
     _submission_has_dicom,
     delete_input_objects,
@@ -169,6 +169,17 @@ def _run_once(s3: _FakeS3Client, *, work_root: Path, **kwargs) -> int:
 def _result_payload(s3: _FakeS3Client, submission_id: str) -> dict:
     key = f"clarity/submissions/{submission_id}/result.json"
     return json.loads(s3.objects[key].decode("utf-8"))
+
+
+def _mk_series(uid: str, *, modality: str = "CT", slices: int = MIN_CT_SLICES) -> DicomSeries:
+    files = tuple(Path(f"/tmp/{uid}_{idx:04d}.dcm") for idx in range(slices))
+    return DicomSeries(
+        files=files,
+        study_instance_uid="1.2.840.1",
+        series_instance_uid=uid,
+        modality=modality,
+        series_dir=Path("/tmp"),
+    )
 
 
 class S3WorkerTests(unittest.TestCase):
@@ -447,6 +458,70 @@ class S3WorkerTests(unittest.TestCase):
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["error_code"], "PIPELINE_ERROR")
         self.assertEqual(result["message"], "Processing failed.")
+
+    def test_series_fallback_retries_second_ranked_series(self) -> None:
+        s3 = _FakeS3Client()
+        _add_dicom_series(s3, "sub-fb")
+
+        ranked = [_mk_series("se-a"), _mk_series("se-b")]
+        calls: list[str | None] = []
+
+        def fake_run(cfg, series_instance_uid=None):
+            ws = cfg.workspace_root
+            calls.append(series_instance_uid)
+            if series_instance_uid == "se-a":
+                raise RuntimeError(
+                    "No kidney structures were detected in the CT. The scan may not cover the kidneys."
+                )
+            manifest = {"artifacts": {"clarity_case_ids": ["c1"]}}
+            (ws / "run_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            pd = ws / "predictions"
+            pd.mkdir(parents=True, exist_ok=True)
+            (pd / "predictions.json").write_text(
+                json.dumps({"cases": [{"ensemble_pred_probs": [0.2, 0.81]}]}),
+                encoding="utf-8",
+            )
+
+        with TemporaryDirectory() as tmp, patch(
+            "clarity_inference_pipeline.s3_worker.rank_ct_series_candidates_for_fallback",
+            return_value=(ranked, []),
+        ), patch(
+            "clarity_inference_pipeline.s3_worker.run_pipeline",
+            side_effect=fake_run,
+        ):
+            _run_once(s3, work_root=Path(tmp), max_series_fallback_attempts=4)
+
+        result = _result_payload(s3, "sub-fb")
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(calls, ["se-a", "se-b"])
+
+    def test_max_series_fallback_one_skips_rank_patch_preserves_single_run(self) -> None:
+        s3 = _FakeS3Client()
+        _add_dicom_series(s3, "sub-single")
+
+        with TemporaryDirectory() as tmp, patch(
+            "clarity_inference_pipeline.s3_worker.rank_ct_series_candidates_for_fallback"
+        ) as rank_mock, patch(
+            "clarity_inference_pipeline.s3_worker.run_pipeline"
+        ) as run_mock:
+
+            def fake_single(cfg, series_instance_uid=None):
+                ws = cfg.workspace_root
+                manifest = {"artifacts": {"clarity_case_ids": ["c1"]}}
+                (ws / "run_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+                pd = ws / "predictions"
+                pd.mkdir(parents=True, exist_ok=True)
+                (pd / "predictions.json").write_text(
+                    json.dumps({"cases": [{"ensemble_pred_probs": [0.2, 0.73]}]}),
+                    encoding="utf-8",
+                )
+                return ws / "run_manifest.json"
+
+            run_mock.side_effect = fake_single
+            _run_once(s3, work_root=Path(tmp), max_series_fallback_attempts=1)
+            rank_mock.assert_not_called()
+            run_mock.assert_called_once()
+            self.assertIsNone(run_mock.call_args.kwargs.get("series_instance_uid"))
 
 
 if __name__ == "__main__":
