@@ -17,6 +17,10 @@ from .dicom_sitk import convert_staged_dicom_to_nifti
 from .mask_adaptation import adapt_masks, swp_segmentation_has_tumor_voxels
 from .nifti_ct import select_primary_ct_nifti, write_nnunet_compatible_nifti
 from .phase_gating import run_phase_gating
+from .tcga_phase_prediction import (
+    enforce_tcga_phase_allowed,
+    run_tcga_phase_prediction,
+)
 from .totalsegmentator import run_totalsegmentator
 from .tumor_segmentation import run_tumor_segmentation
 from .workspace import (
@@ -242,6 +246,33 @@ def run_pipeline(
             )
         case_steps.append("totalsegmentator" if not skip_ts else "totalsegmentator_cached")
 
+        if config.tcga_phase_prediction.enabled:
+            if not kidney_mask.exists():
+                raise RuntimeError(
+                    "TCGA phase prediction requires a kidney mask from TotalSegmentator, but "
+                    f"{kidney_mask} is missing."
+                )
+            _pipeline_log("  TCGA phase prediction (SWP v3; PNvsRN uses v5 separately)…")
+            try:
+                phase_result = run_tcga_phase_prediction(
+                    case_id=case_id,
+                    ct_nifti=case_paths["image_compat"],
+                    kidney_mask_nifti=kidney_mask,
+                    cases_root=layout["cases"],
+                    config=config.tcga_phase_prediction,
+                )
+                enforce_tcga_phase_allowed(phase_result, case_id=case_id)
+            except (RuntimeError, ValueError):
+                raise
+            except Exception as e:
+                raise RuntimeError(
+                    "Automated contrast-phase scoring failed for this series. CLARITY is validated on "
+                    "corticomedullary and nephrographic phases only; ensure the upload is a suitable "
+                    "contrast-enhanced abdominal CT."
+                ) from e
+            case_artifacts["tcga_phase_prediction"] = phase_result.metadata_block
+            case_steps.append("tcga_phase_prediction")
+
         if not config.skip_tumor:
             if skip_tumor_run:
                 _pipeline_log("  Reusing cached tumor segmentation…")
@@ -336,6 +367,8 @@ def run_pipeline(
                 "tumor_segmentation": str(case_paths["tumor_segmentation"]),
             },
         }
+        if "tcga_phase_prediction" in case_artifacts:
+            case_metadata["tcga_phase_prediction"] = case_artifacts["tcga_phase_prediction"]
         if clarity_skip is not None:
             case_metadata["clarity_skip"] = clarity_skip
 
@@ -367,6 +400,11 @@ def run_pipeline(
             "dicom_to_nifti",
             "phase_gating" if config.phase_gating.enabled else "phase_gating_skipped",
             "totalsegmentator",
+            (
+                "tcga_phase_prediction"
+                if config.tcga_phase_prediction.enabled
+                else "tcga_phase_prediction_skipped"
+            ),
             "tumor_segmentation" if not config.skip_tumor else "tumor_segmentation_skipped",
             "mask_adaptation",
         ]
@@ -414,6 +452,7 @@ def run_pipeline(
             "clarity_case_ids": clarity_case_ids,
             "series_instance_uid": series_instance_uid,
             "phase_gating_enabled": config.phase_gating.enabled,
+            "tcga_phase_prediction_enabled": config.tcga_phase_prediction.enabled,
             "skip_tumor": config.skip_tumor,
             "skip_inference": config.skip_inference,
             "reuse_cached_artifacts": config.reuse_cached_artifacts,

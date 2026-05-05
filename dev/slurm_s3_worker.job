@@ -20,6 +20,7 @@
 # Zero-config defaults (aligned to this repo/chat):
 #   CLARITY_S3_BUCKET defaults to clarity-upload-portal-prod
 #   CLARITY_WEIGHTS_DIR defaults to <repo>/pnvrn_folds
+#   CLARITY_TCGA_PHASE_MODEL_DIR defaults to AIM-HI-Lab radiomics tcga_phase (SWP v3 gating)
 #
 # Optional env vars:
 #   CLARITY_S3_PREFIX_ROOT=clarity/submissions
@@ -31,6 +32,8 @@
 #   CLARITY_DELETE_INPUT_AFTER_SUCCESS=1
 #   CLARITY_DELETE_INPUT_AFTER_FAILURE=0
 #   CLARITY_S3_ONCE=0|1
+#   CLARITY_TCGA_PHASE_MODEL_DIR=...   # override default; set empty to disable SWP v3 phase gating
+#   CLARITY_TCGA_PHASE_CACHE_ROOT=...  # optional patch cache for TCGA phase
 #   AWS_DEFAULT_REGION=us-east-1
 #   AWS_PROFILE=clarity-worker             # if using ~/.aws/credentials
 #   AWS_SHARED_CREDENTIALS_FILE=/secure/path/credentials
@@ -53,6 +56,7 @@ set -euo pipefail
 CLARITY_S3_ENV_FILE_DEFAULT="dev/slurm_s3_worker.env"
 CLARITY_S3_BUCKET_DEFAULT="clarity-upload-portal-prod"
 CLARITY_WEIGHTS_DIR_DEFAULT=""  # if blank, uses <repo>/pnvrn_folds
+CLARITY_TCGA_PHASE_MODEL_DIR_DEFAULT="/home/jonnalr/AIM-HI-Lab/models/radiomics_pipeline_models/tcga_phase"
 CLARITY_S3_PREFIX_ROOT_DEFAULT="clarity/submissions"
 CLARITY_WORK_ROOT_DEFAULT="/home/jonnalr/AIM-HI-Lab/temp"  # if blank, uses <repo>/local-s3-worker
 CLARITY_DEVICE_DEFAULT="cuda"
@@ -157,6 +161,10 @@ export CLARITY_WEIGHTS_DIR="${CLARITY_WEIGHTS_DIR:-${CLARITY_WEIGHTS_DIR_DEFAULT
 if [[ -z "${CLARITY_WEIGHTS_DIR}" ]]; then
   export CLARITY_WEIGHTS_DIR="${REPO_ROOT}/pnvrn_folds"
 fi
+# Respect explicit empty CLARITY_TCGA_PHASE_MODEL_DIR= to disable (do not use :- which treats '' as unset).
+if [[ ! -v CLARITY_TCGA_PHASE_MODEL_DIR ]]; then
+  export CLARITY_TCGA_PHASE_MODEL_DIR="${CLARITY_TCGA_PHASE_MODEL_DIR_DEFAULT}"
+fi
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${AWS_DEFAULT_REGION_DEFAULT}}"
 AWS_PROFILE_VALUE="${AWS_PROFILE:-${AWS_PROFILE_DEFAULT}}"
 if [[ -n "${AWS_PROFILE_VALUE}" ]]; then
@@ -191,6 +199,11 @@ if [[ ! -d "${CLARITY_WEIGHTS_DIR}" ]]; then
   echo "Expected default is <repo>/pnvrn_folds. If yours is elsewhere, set CLARITY_WEIGHTS_DIR." >&2
   exit 1
 fi
+if [[ -n "${CLARITY_TCGA_PHASE_MODEL_DIR:-}" && ! -d "${CLARITY_TCGA_PHASE_MODEL_DIR}" ]]; then
+  echo "CLARITY_TCGA_PHASE_MODEL_DIR is set but not a directory: ${CLARITY_TCGA_PHASE_MODEL_DIR}" >&2
+  echo "Fix the path or set CLARITY_TCGA_PHASE_MODEL_DIR= to disable TCGA phase gating." >&2
+  exit 1
+fi
 if [[ -z "${nnUNet_results:-}" || -z "${nnUNet_preprocessed:-}" || -z "${nnUNet_raw:-}" ]]; then
   echo "nnU-Net v2 setup is not initialized for this job environment." >&2
   echo "Expected nnUNet v2 vars are missing (nnUNet_results / nnUNet_preprocessed / nnUNet_raw)." >&2
@@ -212,6 +225,12 @@ echo "  region=${AWS_DEFAULT_REGION}"
 echo "  prefix=${CLARITY_S3_PREFIX_ROOT}"
 echo "  work_root=${CLARITY_WORK_ROOT}"
 echo "  weights_dir=${CLARITY_WEIGHTS_DIR}"
+if [[ -n "${CLARITY_TCGA_PHASE_MODEL_DIR:-}" ]]; then
+  echo "  tcga_phase_model_dir=${CLARITY_TCGA_PHASE_MODEL_DIR}"
+fi
+if [[ -n "${CLARITY_TCGA_PHASE_CACHE_ROOT:-}" ]]; then
+  echo "  tcga_phase_cache_root=${CLARITY_TCGA_PHASE_CACHE_ROOT}"
+fi
 echo "  device=${CLARITY_DEVICE}"
 echo "  dicom_backend=${CLARITY_DICOM_BACKEND}"
 if [[ "${CLARITY_DICOM_BACKEND}" == "dcm2niix" ]]; then
@@ -260,6 +279,12 @@ if [[ "${CLARITY_S3_ONCE}" == "1" ]]; then
 fi
 if [[ "${CLARITY_FAIL_ON_EMPTY_TUMOR}" == "1" ]]; then
   CMD+=(--fail-on-empty-tumor)
+fi
+if [[ -n "${CLARITY_TCGA_PHASE_MODEL_DIR:-}" ]]; then
+  CMD+=(--tcga-phase-model-dir "${CLARITY_TCGA_PHASE_MODEL_DIR}")
+fi
+if [[ -n "${CLARITY_TCGA_PHASE_CACHE_ROOT:-}" ]]; then
+  CMD+=(--tcga-phase-cache-root "${CLARITY_TCGA_PHASE_CACHE_ROOT}")
 fi
 
 echo "Running: ${CMD[*]}"

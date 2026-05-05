@@ -22,6 +22,7 @@ from .config import (
     InferenceConfig,
     MaskAdaptationConfig,
     PhaseGatingConfig,
+    TcgaPhasePredictionConfig,
     TotalSegmentatorConfig,
     TumorSegmentationConfig,
 )
@@ -565,6 +566,8 @@ def _retryable_failed_series_attempt(exc: BaseException) -> bool:
             "unenhanced",
             "incorrect phase",
             "renal tumor scoring",
+            "predicted ct phase",
+            "tcga phase",
             "totalsegmentator failed",
             "tumor segmentation failed",
             "dcm2niix failed",
@@ -621,6 +624,8 @@ def _process_submission(
     max_object_count: int,
     max_single_object_bytes: int,
     max_series_fallback_attempts: int,
+    tcga_phase_model_dir: Path | None = None,
+    tcga_phase_cache_root: Path | None = None,
 ) -> None:
     write_result_json(
         s3_client,
@@ -670,11 +675,18 @@ def _process_submission(
 
         active_workspace = pipeline_workspace
 
+        tcga_phase_cfg = TcgaPhasePredictionConfig(
+            enabled=tcga_phase_model_dir is not None,
+            model_dir=tcga_phase_model_dir,
+            cache_root=tcga_phase_cache_root,
+            device=device,
+        )
         base_cfg_kwargs = dict(
             dicom_input=input_root,
             totalsegmentator=TotalSegmentatorConfig(device=device),
             tumor=TumorSegmentationConfig(),
             phase_gating=PhaseGatingConfig(),
+            tcga_phase_prediction=tcga_phase_cfg,
             mask_adaptation=MaskAdaptationConfig(),
             inference=InferenceConfig(
                 checkpoint_dir=weights_dir,
@@ -824,6 +836,8 @@ def _run_iteration(
     max_object_count: int = DEFAULT_MAX_OBJECT_COUNT,
     max_single_object_bytes: int = DEFAULT_MAX_SINGLE_OBJECT_BYTES,
     max_series_fallback_attempts: int = DEFAULT_MAX_SERIES_FALLBACK_ATTEMPTS,
+    tcga_phase_model_dir: Path | None = None,
+    tcga_phase_cache_root: Path | None = None,
 ) -> int:
     pending = list_pending_submissions(
         s3_client,
@@ -857,6 +871,8 @@ def _run_iteration(
                 max_object_count=max_object_count,
                 max_single_object_bytes=max_single_object_bytes,
                 max_series_fallback_attempts=max_series_fallback_attempts,
+                tcga_phase_model_dir=tcga_phase_model_dir,
+                tcga_phase_cache_root=tcga_phase_cache_root,
             )
         except WorkerFailure as exc:
             _log(
@@ -968,6 +984,21 @@ def run(
         envvar="CLARITY_WEIGHTS_DIR",
         exists=True,
         file_okay=False,
+    ),
+    tcga_phase_model_dir: Path | None = typer.Option(
+        None,
+        "--tcga-phase-model-dir",
+        envvar="CLARITY_TCGA_PHASE_MODEL_DIR",
+        exists=True,
+        file_okay=False,
+        help="SWP v3 TCGA phase checkpoints (*.pth). When set, gating runs after TotalSegmentator.",
+    ),
+    tcga_phase_cache_root: Path | None = typer.Option(
+        None,
+        "--tcga-phase-cache-root",
+        envvar="CLARITY_TCGA_PHASE_CACHE_ROOT",
+        file_okay=False,
+        help="Optional cache directory for TCGA phase (v3) patch extraction.",
     ),
     device: str = typer.Option("cpu", "--device", envvar="CLARITY_DEVICE"),
     dicom_backend: str = typer.Option(
@@ -1081,6 +1112,7 @@ def run(
         max_object_count=max_object_count,
         max_single_object_bytes=max_single_object_bytes,
         max_series_fallback_attempts=max_series_fallback_attempts,
+        tcga_phase_model_dir=str(tcga_phase_model_dir) if tcga_phase_model_dir else None,
     )
 
     while True:
@@ -1104,6 +1136,8 @@ def run(
             max_object_count=max_object_count,
             max_single_object_bytes=max_single_object_bytes,
             max_series_fallback_attempts=max_series_fallback_attempts,
+            tcga_phase_model_dir=tcga_phase_model_dir,
+            tcga_phase_cache_root=tcga_phase_cache_root,
         )
         if once:
             _log("info", "worker_exit_once")

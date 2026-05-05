@@ -1,28 +1,21 @@
-import os
-import sys
 import json
-from time import time
-from typing import List
 from pathlib import Path
-from argparse import ArgumentParser
-import random
+from typing import Dict, List
 
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-from torchvision.models import resnet50
-from sklearn.metrics import roc_auc_score
-import torch.nn.functional as F
-import torch.nn as nn
-import numpy as np
-from tqdm import tqdm
-from typing import List, Dict, Tuple, Any
 import imageio.v2 as iio
+import numpy as np
+import torch
+from torchvision.models import resnet50
 
-from swp.v3 import cache_case_v1, no_augment_fn, load_view, hash_str
+from .v3_preprocess import cache_case_v1, hash_str, load_view, no_augment_fn
 
-USER = os.environ["USER"]
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+def _resolve_torch_device(device: str | torch.device | None) -> torch.device:
+    if device is None:
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if isinstance(device, torch.device):
+        return device
+    return torch.device(device)
 
 BATCH_SIZE = 16
 RSMP_PIXEL_SIZE = 1
@@ -44,7 +37,9 @@ KITS_SEG_CLASS_DEFINITIONS = {
 
 PHASE_MAP = ['Noncontrast', 'Nephrographic', 'Arterial', 'Excretory']
 
-def load_models(model_pths: List[Path], n_classes: int) -> List[torch.nn.Module]:
+def load_models(
+    model_pths: List[Path], n_classes: int, device: torch.device
+) -> List[torch.nn.Module]:
     models = []
     for model_pth in model_pths:
         if not model_pth.exists():
@@ -52,8 +47,8 @@ def load_models(model_pths: List[Path], n_classes: int) -> List[torch.nn.Module]
             continue
         model = resnet50()
         model.fc = torch.nn.Linear(2048, n_classes)
-        model.load_state_dict(torch.load(model_pth, map_location=DEVICE))
-        model.to(DEVICE)
+        model.load_state_dict(torch.load(model_pth, map_location=device))
+        model.to(device)
         model.eval()
         models.append(model)
     return models
@@ -138,14 +133,14 @@ def assemble_batch_for_inference(
     return batch_arr
 
 def run_ensemble_inference(
-    master_buffer: Dict[str, List[Dict]], 
-    models: List[torch.nn.Module], 
-    device: torch.device, 
+    master_buffer: Dict[str, List[Dict]],
+    models: List[torch.nn.Module],
+    device: torch.device,
     n_classes: int,
     model_name: str,
     use_seg: bool = True,
-    output_pth: Path = None,
-    seg_class_definitions: Dict[str, List[int]] = None
+    output_pth: Path | None = None,
+    seg_class_definitions: Dict[str, List[int]] | None = None,
 ) -> Dict[str, Dict]:
     """
     Runs inference for an ensemble of models on a set of preprocessed cases.
@@ -231,10 +226,22 @@ def run_ensemble_inference(
 
     return final_predictions
 
-def run_inference_on_batch(img_pths, mask_pths, model_dir, n_classes, sampling_mode, use_seg, model_name, output_pth = None, case_ids=None, cache_pth=None):
-
+def run_inference_on_batch(
+    img_pths,
+    mask_pths,
+    model_dir,
+    n_classes,
+    sampling_mode,
+    use_seg,
+    model_name,
+    output_pth=None,
+    case_ids=None,
+    cache_pth=None,
+    device: str | torch.device | None = None,
+):
+    torch_device = _resolve_torch_device(device)
     print("--- Step 1: Preprocessing Cases ---")
-    master_buffer = {}
+    master_buffer: dict[str, list] = {}
     offset_value = None if sampling_mode == "weighted" else 0.0
     sampling_fov_cm = None if sampling_mode == "weighted" else 10.0
 
@@ -319,23 +326,26 @@ def run_inference_on_batch(img_pths, mask_pths, model_dir, n_classes, sampling_m
             master_buffer[case_id] = []
 
     print("\n--- Step 2: Loading Models ---")
-    model_pths = list(model_dir.glob("*.pth"))
+    model_pths = list(Path(model_dir).glob("*.pth"))
     if not model_pths:
         print("No model files found in the specified directory.")
-        return
+        return {}
     print(f"Found {len(model_pths)} model files in {model_dir}")
-    models = load_models(model_pths, n_classes=n_classes)
+    models = load_models(model_pths, n_classes=n_classes, device=torch_device)
     print(f"Loaded {len(models)} models.")
 
     print("\n--- Step 3: Running Inference ---")
-    predictions = run_ensemble_inference(master_buffer, 
-                                         models, DEVICE, 
-                                         n_classes=n_classes, 
-                                         use_seg=use_seg, 
-                                         output_pth=output_pth, 
-                                         model_name=model_name, 
-                                         seg_class_definitions=seg_class_definitions)
-    
+    predictions = run_ensemble_inference(
+        master_buffer,
+        models,
+        torch_device,
+        n_classes=n_classes,
+        use_seg=use_seg,
+        output_pth=output_pth,
+        model_name=model_name,
+        seg_class_definitions=seg_class_definitions,
+    )
+
     print("Inference completed.")
     return predictions
     

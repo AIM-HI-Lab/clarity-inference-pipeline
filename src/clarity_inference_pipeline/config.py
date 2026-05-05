@@ -77,6 +77,27 @@ class MaskAdaptationConfig:
 
 
 @dataclass(frozen=True)
+class TcgaPhasePredictionConfig:
+    """
+    TCGA-style 4-class contrast phase model (SWP **v3** preprocessing + ResNet50).
+
+    This is independent of :class:`InferenceConfig`, which drives PNvsRN MIL inference on **v5** SWP.
+    """
+
+    enabled: bool = False
+    """When true, run phase prediction after TotalSegmentator and before tumor segmentation."""
+
+    model_dir: Path | None = None
+    """Directory containing one or more ``*.pth`` checkpoints (same layout as ``model_dir/tcga_phase`` in ccf-radiomics)."""
+
+    cache_root: Path | None = None
+    """Optional directory for SWP v3 patch caches; avoids recomputing slices across runs."""
+
+    device: str | None = None
+    """Torch device for phase models (e.g. ``cuda``, ``cpu``); defaults to CUDA when available."""
+
+
+@dataclass(frozen=True)
 class InferenceConfig:
     """Settings for vendored SWP PNvsRN inference."""
 
@@ -100,6 +121,7 @@ class PipelineConfig:
     totalsegmentator: TotalSegmentatorConfig = field(default_factory=TotalSegmentatorConfig)
     tumor: TumorSegmentationConfig = field(default_factory=TumorSegmentationConfig)
     phase_gating: PhaseGatingConfig = field(default_factory=PhaseGatingConfig)
+    tcga_phase_prediction: TcgaPhasePredictionConfig = field(default_factory=TcgaPhasePredictionConfig)
     mask_adaptation: MaskAdaptationConfig = field(default_factory=MaskAdaptationConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
     skip_tumor: bool = False

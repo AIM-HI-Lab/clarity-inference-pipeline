@@ -12,6 +12,7 @@ from .config import (
     InferenceConfig,
     MaskAdaptationConfig,
     PhaseGatingConfig,
+    TcgaPhasePredictionConfig,
     TotalSegmentatorConfig,
     TumorSegmentationConfig,
 )
@@ -176,6 +177,31 @@ def predict(
             help="``module:callable`` or shell command; required when phase gating is enabled.",
         ),
     ] = None,
+    enable_tcga_phase_prediction: Annotated[
+        bool,
+        typer.Option(
+            "--enable-tcga-phase-prediction",
+            help="Run SWP v3 TCGA 4-class phase model after TotalSegmentator; aborts unless nephrographic or arterial.",
+        ),
+    ] = False,
+    tcga_phase_model_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--tcga-phase-model-dir",
+            envvar="CLARITY_TCGA_PHASE_MODEL_DIR",
+            exists=True,
+            file_okay=False,
+            help="Directory of TCGA phase ResNet checkpoints (*.pth). Overrides CLARITY_TCGA_PHASE_MODEL_DIR.",
+        ),
+    ] = None,
+    tcga_phase_cache_root: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--tcga-phase-cache-root",
+            file_okay=False,
+            help="Optional cache directory for SWP v3 patch extraction (TCGA phase only).",
+        ),
+    ] = None,
     mask_reference: Annotated[
         Optional[Path],
         typer.Option(
@@ -210,6 +236,22 @@ def predict(
     if enable_phase_gating and not phase_entrypoint:
         raise typer.BadParameter("--phase-entrypoint is required when --enable-phase-gating is set.")
 
+    tcga_phase_dir_resolved = tcga_phase_model_dir
+    if enable_tcga_phase_prediction and tcga_phase_dir_resolved is None:
+        env_tcga = (os.environ.get("CLARITY_TCGA_PHASE_MODEL_DIR") or "").strip()
+        if env_tcga:
+            tcga_phase_dir_resolved = Path(env_tcga)
+    if enable_tcga_phase_prediction:
+        if tcga_phase_dir_resolved is None:
+            raise typer.BadParameter(
+                "--tcga-phase-model-dir or CLARITY_TCGA_PHASE_MODEL_DIR is required when "
+                "--enable-tcga-phase-prediction is set."
+            )
+        if not tcga_phase_dir_resolved.is_dir():
+            raise typer.BadParameter(
+                f"TCGA phase model directory is not a directory: {tcga_phase_dir_resolved}"
+            )
+
     if checkpoint_dir is None and DEFAULT_MODEL_DIR.exists():
         checkpoint_dir = DEFAULT_MODEL_DIR
         checkpoint_dir_recursive = True
@@ -217,6 +259,12 @@ def predict(
     phase_cfg = PhaseGatingConfig(
         enabled=enable_phase_gating,
         entrypoint=phase_entrypoint,
+    )
+    tcga_phase_cfg = TcgaPhasePredictionConfig(
+        enabled=enable_tcga_phase_prediction,
+        model_dir=tcga_phase_dir_resolved,
+        cache_root=tcga_phase_cache_root,
+        device=device,
     )
     totalseg_extra_args = resolve_totalsegmentator_extra_args(cli_extra=totalseg_extra)
     tumor_extra_args = resolve_tumor_extra_args(cli_extra=tumor_extra)
@@ -264,6 +312,7 @@ def predict(
         totalsegmentator=ts_cfg,
         tumor=tumor_cfg,
         phase_gating=phase_cfg,
+        tcga_phase_prediction=tcga_phase_cfg,
         mask_adaptation=mask_cfg,
         inference=inference_cfg,
         skip_tumor=skip_tumor,
