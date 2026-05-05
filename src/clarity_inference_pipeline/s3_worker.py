@@ -603,7 +603,14 @@ def _safe_error_message(exc: Exception) -> str:
     msg = str(exc).strip().replace("\n", " ")
     if not msg:
         msg = exc.__class__.__name__
-    return msg[:300]
+    # Keep messages bounded for S3/result payloads, but preserve the tail where
+    # the most specific/root exception text usually appears.
+    max_len = 1200
+    if len(msg) <= max_len:
+        return msg
+    head = msg[:700]
+    tail = msg[-450:]
+    return f"{head} ... {tail}"
 
 
 def _process_submission(
