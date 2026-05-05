@@ -37,6 +37,20 @@ KITS_SEG_CLASS_DEFINITIONS = {
 
 PHASE_MAP = ['Noncontrast', 'Nephrographic', 'Arterial', 'Excretory']
 
+
+def _instance_weight(instance: Dict) -> float:
+    """
+    Backward-compatible weight extraction for SWP v3 slice dicts.
+
+    Different code paths may emit ``arb_wt`` (expected), ``arb_wts`` (legacy typo),
+    or no weight at all. Default to uniform weight 1.0 instead of crashing.
+    """
+    for key in ("arb_wt", "arb_wts", "weight"):
+        value = instance.get(key)
+        if value is not None:
+            return float(value)
+    return 1.0
+
 def load_models(
     model_pths: List[Path], n_classes: int, device: torch.device
 ) -> List[torch.nn.Module]:
@@ -169,7 +183,7 @@ def run_ensemble_inference(
                 batch_start = 0
                 while batch_start < len(all_instances):
                     batch_instances = all_instances[batch_start:batch_start + BATCH_SIZE]
-                    batch_weights = [inst["arb_wt"] for inst in batch_instances]
+                    batch_weights = [_instance_weight(inst) for inst in batch_instances]
                     
                     batch_np = assemble_batch_for_inference(batch_instances, seg_class_definitions, use_seg)
                     batch_torch = torch.from_numpy(batch_np).to(device)
