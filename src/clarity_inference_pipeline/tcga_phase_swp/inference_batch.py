@@ -110,7 +110,14 @@ def assemble_batch_for_inference(
     
     for i, instance in enumerate(instances):
         img = instance["img"]
-        mask = instance["mask"]
+        mask = np.asarray(instance["mask"])
+
+        # ``crop_rois`` scales labels by 200 before writing PNGs; ``load_case_from_cache`` descales
+        # with /200. The in-memory path (``cache=False``, used by CLARITY) passes scaled masks
+        # through unchanged — without this step, no voxels match class_defs {1, 3} and the model
+        # sees CT-only inputs (always noncontrast / class 0).
+        if mask.size and int(mask.max()) > 3:
+            mask = np.round(mask.astype(np.float32) / 200.0).astype(np.uint8)
 
         img = img.astype(np.float32)
         img = (img - 128) / 128 # Normalize
