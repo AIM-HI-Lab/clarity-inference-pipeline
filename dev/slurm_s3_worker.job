@@ -122,6 +122,8 @@ if [[ -f "${CLARITY_S3_ENV_FILE}" ]]; then
   echo "Loaded config from ${CLARITY_S3_ENV_FILE}"
 fi
 export PATH="${VENV_DIR}/bin:${PATH}"
+# Force this checkout's code first so cluster site-packages can't shadow with stale installs.
+export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 # Mirror dev/run_local_dicom_batch.sh nnU-Net v2 env wiring so Dataset123_Kits23 resolves.
 if [[ -n "${CLARITY_NNUNET_V1_RAW:-}" ]]; then
@@ -250,6 +252,7 @@ echo "  aws_config_file=${AWS_CONFIG_FILE}"
 echo "  nnunet_raw=${nnUNet_raw:-<unset>}"
 echo "  nnunet_preprocessed=${nnUNet_preprocessed:-<unset>}"
 echo "  nnunet_results=${nnUNet_results:-<unset>}"
+echo "  pythonpath=${PYTHONPATH}"
 
 CMD=(
   "${WORKER_BIN}"
