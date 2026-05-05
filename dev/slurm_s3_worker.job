@@ -67,7 +67,7 @@ CLARITY_S3_MAX_CASES_DEFAULT=""  # blank means no limit
 CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT="0"
 CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT="0"
 CLARITY_S3_ONCE_DEFAULT="1"
-CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT="0"
+CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT="1"
 AWS_DEFAULT_REGION_DEFAULT="us-east-2"
 AWS_PROFILE_DEFAULT="clarity-worker"  # optional (for ~/.aws/credentials profile)
 AWS_SHARED_CREDENTIALS_FILE_DEFAULT="/home/jonnalr/.aws/credentials"
@@ -124,6 +124,8 @@ fi
 export PATH="${VENV_DIR}/bin:${PATH}"
 # Force this checkout's code first so cluster site-packages can't shadow with stale installs.
 export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+# Avoid delayed stdout in batch logs; keeps step logs in execution order.
+export PYTHONUNBUFFERED=1
 
 # Mirror dev/run_local_dicom_batch.sh nnU-Net v2 env wiring so Dataset123_Kits23 resolves.
 if [[ -n "${CLARITY_NNUNET_V1_RAW:-}" ]]; then
