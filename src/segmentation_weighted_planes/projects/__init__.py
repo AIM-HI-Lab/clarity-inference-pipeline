@@ -106,8 +106,6 @@ from segmentation_weighted_planes.projects.pnvrn_nifti import (  # noqa: E402
     PNvsRN_KiTS_ExternalVal,
     PNvsRN_NiftiInference,
 )
-from segmentation_weighted_planes.projects.tcga_phase import TcgaPhaseNiftiGate  # noqa: E402
 
 _register_project(PNvsRN_NiftiInference())
 _register_project(PNvsRN_KiTS_ExternalVal())
-_register_project(TcgaPhaseNiftiGate())
