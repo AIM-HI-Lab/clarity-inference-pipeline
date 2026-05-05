@@ -28,7 +28,7 @@
 #   CLARITY_DEVICE=cuda|cpu
 #   CLARITY_S3_POLL_SECONDS=30
 #   CLARITY_S3_MAX_CASES=4
-#   CLARITY_S3_MAX_SERIES_FALLBACK_ATTEMPTS=5   # try next ranked CT series after retryable failures (worker default is 5; set to 1 to disable)
+#   CLARITY_S3_MAX_SERIES_FALLBACK_ATTEMPTS=20   # try next ranked CT series after retryable failures (worker default is 20; set to 1 to disable)
 #   CLARITY_DELETE_INPUT_AFTER_SUCCESS=1
 #   CLARITY_DELETE_INPUT_AFTER_FAILURE=0
 #   CLARITY_S3_ONCE=0|1
