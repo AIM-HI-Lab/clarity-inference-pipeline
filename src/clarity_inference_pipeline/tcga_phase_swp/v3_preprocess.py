@@ -155,8 +155,7 @@ def crop_rois(
                 iio.imsave(dst_prnt / f"{dst_stem}_img.png", crp_img)
                 iio.imsave(dst_prnt / f"{dst_stem}_seg.png", crp_seg)
             else:
-                # ``arb_wt`` matches ``inference_batch.run_ensemble_inference`` (weighted path used ``mar_wt`` upstream).
-                rois.append({"img": crp_img, "mask": crp_seg, "arb_wt": feat_size})
+                rois.append({"img": crp_img, "mask": crp_seg, "mar_wt": feat_size})
 
     # If sampling mode is fixed...
     elif sampling_mode == "fixed":
@@ -1013,7 +1012,10 @@ class SWPDataset_V3():
                 "patch_size_px": PATCH_SIZE_PX,
                 "sampling_fov_cm": sampling_fov_cm
             }
-            settings_hash = hash_str(json.dumps(settings_obj, sort_keys=True))
+            try:
+                settings_hash = hash_str(json.dumps(settings_obj, order_keys=True))
+            except Exception:
+                settings_hash = hash_str(json.dumps(settings_obj, sort_keys=True))
             hashed_name = f"{stem}_{settings_hash}"
             case_cache_pth = self.cache_pth / hashed_name
             self.data.append(prep_case_v1(

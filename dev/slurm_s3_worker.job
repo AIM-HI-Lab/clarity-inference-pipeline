@@ -28,7 +28,6 @@
 #   CLARITY_S3_POLL_SECONDS=30
 #   CLARITY_S3_MAX_CASES=4
 #   CLARITY_S3_MAX_SERIES_FALLBACK_ATTEMPTS=5   # try next ranked CT series after retryable failures (worker default is 5; set to 1 to disable)
-#   CLARITY_TCGA_PHASE_MODEL_PARENT=/path/to/models   # parent dir containing tcga_phase/ (CCF SWP layout); requires swp package
 #   CLARITY_DELETE_INPUT_AFTER_SUCCESS=1
 #   CLARITY_DELETE_INPUT_AFTER_FAILURE=0
 #   CLARITY_S3_ONCE=0|1
@@ -64,21 +63,11 @@ CLARITY_S3_MAX_CASES_DEFAULT=""  # blank means no limit
 CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT="0"
 CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT="0"
 CLARITY_S3_ONCE_DEFAULT="1"
-CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT="1"
-# Parent of the SWP ``tcga_phase`` checkpoint dir (weights live in …/tcga_phase/).
-CLARITY_TCGA_PHASE_MODEL_PARENT_DEFAULT="/home/jonnalr/AIM-HI-Lab/models/radiomics_pipeline_models"
+CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT="0"
 AWS_DEFAULT_REGION_DEFAULT="us-east-2"
 AWS_PROFILE_DEFAULT="clarity-worker"  # optional (for ~/.aws/credentials profile)
 AWS_SHARED_CREDENTIALS_FILE_DEFAULT="/home/jonnalr/.aws/credentials"
 AWS_CONFIG_FILE_DEFAULT="/home/jonnalr/.aws/config"
-
-# Strict scoring (defaults above): fail a CT series with no tumor; optional tcga_phase gate after TotalSegmentator.
-# Multi-series uploads: phase / no-tumor / no-kidney failures are retryable — the worker tries the next ranked CT
-# (CLARITY_S3_MAX_SERIES_FALLBACK_ATTEMPTS) so a bad series does not consume the submission if another is valid.
-#
-# Phase model (AIM-HI-Lab): checkpoints in …/radiomics_pipeline_models/tcga_phase/
-#   CLARITY_TCGA_PHASE_MODEL_PARENT=/home/jonnalr/AIM-HI-Lab/models/radiomics_pipeline_models
-# CCF reference (seshadr2): /home/seshadr2/beegfs/models → …/models/tcga_phase/
 
 # Slurm executes a copy under a spool dir, so prefer submit dir or explicit CLARITY_REPO_ROOT.
 if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
@@ -191,13 +180,6 @@ export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:
 export CLARITY_DELETE_INPUT_AFTER_SUCCESS="${CLARITY_DELETE_INPUT_AFTER_SUCCESS:-${CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT}}"
 export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-${CLARITY_S3_ONCE_DEFAULT}}"
 export CLARITY_FAIL_ON_EMPTY_TUMOR="${CLARITY_FAIL_ON_EMPTY_TUMOR:-${CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT}}"
-export CLARITY_TCGA_PHASE_MODEL_PARENT="${CLARITY_TCGA_PHASE_MODEL_PARENT:-${CLARITY_TCGA_PHASE_MODEL_PARENT_DEFAULT}}"
-
-if [[ ! -d "${CLARITY_TCGA_PHASE_MODEL_PARENT}/tcga_phase" ]]; then
-  echo "TCGA phase weights not found: ${CLARITY_TCGA_PHASE_MODEL_PARENT}/tcga_phase" >&2
-  echo "Set CLARITY_TCGA_PHASE_MODEL_PARENT to the directory that contains tcga_phase/ (not the tcga_phase path itself)." >&2
-  exit 1
-fi
 
 if [[ -z "${CLARITY_S3_BUCKET}" ]]; then
   echo "CLARITY_S3_BUCKET is empty (unexpected)." >&2
@@ -240,7 +222,6 @@ echo "  max_cases=${CLARITY_S3_MAX_CASES:-<none>}"
 echo "  delete_after_success=${CLARITY_DELETE_INPUT_AFTER_SUCCESS}"
 echo "  delete_after_failure=${CLARITY_DELETE_INPUT_AFTER_FAILURE}"
 echo "  fail_on_empty_tumor=${CLARITY_FAIL_ON_EMPTY_TUMOR}"
-echo "  tcga_phase_model_parent=${CLARITY_TCGA_PHASE_MODEL_PARENT:-<unset>}"
 echo "  once=${CLARITY_S3_ONCE}"
 if [[ -n "${AWS_PROFILE:-}" ]]; then
   echo "  aws_profile=${AWS_PROFILE}"
@@ -280,7 +261,6 @@ fi
 if [[ "${CLARITY_FAIL_ON_EMPTY_TUMOR}" == "1" ]]; then
   CMD+=(--fail-on-empty-tumor)
 fi
-CMD+=(--tcga-phase-model-parent "${CLARITY_TCGA_PHASE_MODEL_PARENT}")
 
 echo "Running: ${CMD[*]}"
 exec "${CMD[@]}"

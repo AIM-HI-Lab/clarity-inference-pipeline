@@ -1,25 +1,28 @@
-import json
 import os
+import sys
+import json
+from time import time
+from typing import List
 from pathlib import Path
-from typing import Any, Dict, List
+from argparse import ArgumentParser
+import random
 
-import imageio.v2 as iio
-import numpy as np
 import torch
+import numpy as np
+import matplotlib.pyplot as plt
 from torchvision.models import resnet50
+from sklearn.metrics import roc_auc_score
+import torch.nn.functional as F
+import torch.nn as nn
+import numpy as np
+from tqdm import tqdm
+from typing import List, Dict, Tuple, Any
+import imageio.v2 as iio
 
-from .v3_preprocess import cache_case_v1, hash_str, load_view, no_augment_fn
+from swp.v3 import cache_case_v1, no_augment_fn, load_view, hash_str
 
-
-def _resolve_inference_device() -> str:
-    """Honor ``SWP_DEVICE`` (``cpu`` / ``cuda`` / ``gpu``) set by the CLARITY pipeline."""
-
-    env = (os.environ.get("SWP_DEVICE") or "").strip().lower()
-    if env == "cpu":
-        return "cpu"
-    if env in ("cuda", "gpu"):
-        return "cuda" if torch.cuda.is_available() else "cpu"
-    return "cuda" if torch.cuda.is_available() else "cpu"
+USER = os.environ["USER"]
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 BATCH_SIZE = 16
 RSMP_PIXEL_SIZE = 1
@@ -41,7 +44,7 @@ KITS_SEG_CLASS_DEFINITIONS = {
 
 PHASE_MAP = ['Noncontrast', 'Nephrographic', 'Arterial', 'Excretory']
 
-def load_models(model_pths: List[Path], n_classes: int, device: str) -> List[torch.nn.Module]:
+def load_models(model_pths: List[Path], n_classes: int) -> List[torch.nn.Module]:
     models = []
     for model_pth in model_pths:
         if not model_pth.exists():
@@ -49,8 +52,8 @@ def load_models(model_pths: List[Path], n_classes: int, device: str) -> List[tor
             continue
         model = resnet50()
         model.fc = torch.nn.Linear(2048, n_classes)
-        model.load_state_dict(torch.load(model_pth, map_location=device))
-        model.to(device)
+        model.load_state_dict(torch.load(model_pth, map_location=DEVICE))
+        model.to(DEVICE)
         model.eval()
         models.append(model)
     return models
@@ -110,14 +113,7 @@ def assemble_batch_for_inference(
     
     for i, instance in enumerate(instances):
         img = instance["img"]
-        mask = np.asarray(instance["mask"])
-
-        # ``crop_rois`` scales labels by 200 before writing PNGs; ``load_case_from_cache`` descales
-        # with /200. The in-memory path (``cache=False``, used by CLARITY) passes scaled masks
-        # through unchanged — without this step, no voxels match class_defs {1, 3} and the model
-        # sees CT-only inputs (always noncontrast / class 0).
-        if mask.size and int(mask.max()) > 3:
-            mask = np.round(mask.astype(np.float32) / 200.0).astype(np.uint8)
+        mask = instance["mask"]
 
         img = img.astype(np.float32)
         img = (img - 128) / 128 # Normalize
@@ -144,7 +140,7 @@ def assemble_batch_for_inference(
 def run_ensemble_inference(
     master_buffer: Dict[str, List[Dict]], 
     models: List[torch.nn.Module], 
-    device: str, 
+    device: torch.device, 
     n_classes: int,
     model_name: str,
     use_seg: bool = True,
@@ -323,18 +319,17 @@ def run_inference_on_batch(img_pths, mask_pths, model_dir, n_classes, sampling_m
             master_buffer[case_id] = []
 
     print("\n--- Step 2: Loading Models ---")
-    device = _resolve_inference_device()
     model_pths = list(model_dir.glob("*.pth"))
     if not model_pths:
         print("No model files found in the specified directory.")
         return
     print(f"Found {len(model_pths)} model files in {model_dir}")
-    models = load_models(model_pths, n_classes=n_classes, device=device)
+    models = load_models(model_pths, n_classes=n_classes)
     print(f"Loaded {len(models)} models.")
 
     print("\n--- Step 3: Running Inference ---")
     predictions = run_ensemble_inference(master_buffer, 
-                                         models, device, 
+                                         models, DEVICE, 
                                          n_classes=n_classes, 
                                          use_seg=use_seg, 
                                          output_pth=output_pth, 
