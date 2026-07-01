@@ -221,3 +221,7 @@ local-runs/
 dev/clarity_local_env.sh
 dev/axis_local_env.sh
 dev/clarity_s3_worker.env
+dev/260501_legacy/clarity_local_env.sh
+dev/260701_init/clarity_local_env.sh
+dev/260701_init/clarity_local_env_overrides.sh
+dev/260701_init/slurm_s3_worker.env

@@ -1,0 +1,287 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=clarity-s3-worker
+#SBATCH --partition=gpu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=32200
+#SBATCH --gres=gpu:2
+#SBATCH --output=slurm-%x-%j.out
+# Wall time intentionally omitted; add #SBATCH --time=... if your site requires it.
+#
+# CLARITY S3 worker for AIM-HI-Lab HPC (jonnalr2 layout, 2026-07).
+#
+# Submit from the repo clone:
+#   cd ~/AIM-HI-Lab/code/jonnalr2/clarity-inference-pipeline
+#   sbatch dev/260701_init/slurm_s3_worker.job
+#
+# One-shot:
+#   sbatch --export=ALL,CLARITY_S3_ONCE=1 dev/260701_init/slurm_s3_worker.job
+#
+# Config layers (later wins):
+#   1) defaults in this file
+#   2) dev/260701_init/clarity_local_env.sh (from setup.sh)
+#   3) dev/260701_init/clarity_local_env_overrides.sh (optional, gitignored)
+#   4) dev/260701_init/slurm_s3_worker.env (optional, gitignored)
+#   5) sbatch --export=ALL,KEY=value
+#
+set -euo pipefail
+
+DEV_INIT_REL="dev/260701_init"
+CLARITY_S3_ENV_FILE_DEFAULT="${DEV_INIT_REL}/slurm_s3_worker.env"
+CLARITY_S3_BUCKET_DEFAULT="clarity-upload-portal-prod"
+CLARITY_WEIGHTS_DIR_DEFAULT=""
+CLARITY_TCGA_PHASE_MODEL_DIR_DEFAULT="${HOME}/AIM-HI-Lab/models/radiomics_pipeline_models/tcga_phase"
+CLARITY_S3_PREFIX_ROOT_DEFAULT="clarity/submissions"
+CLARITY_WORK_ROOT_DEFAULT="${HOME}/beegfs/temp/clarity-s3-worker"
+CLARITY_VENV_DIR_DEFAULT="${HOME}/beegfs/env/clarity-inference-pipeline"
+CLARITY_BEEGFS_TEMP_DEFAULT="${HOME}/beegfs/temp"
+CLARITY_DEVICE_DEFAULT="cuda"
+CLARITY_DICOM_BACKEND_DEFAULT="sitk"
+CLARITY_DCM2NIIX_DEFAULT="dcm2niix"
+CLARITY_S3_POLL_SECONDS_DEFAULT="30"
+CLARITY_S3_MAX_CASES_DEFAULT=""
+CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT="0"
+CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT="0"
+CLARITY_S3_ONCE_DEFAULT="1"
+CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT="1"
+AWS_DEFAULT_REGION_DEFAULT="us-east-2"
+AWS_PROFILE_DEFAULT="clarity-worker"
+AWS_SHARED_CREDENTIALS_FILE_DEFAULT="${HOME}/.aws/credentials"
+AWS_CONFIG_FILE_DEFAULT="${HOME}/.aws/config"
+
+_resolve_repo_root() {
+  if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
+    cd "${CLARITY_REPO_ROOT}" && pwd
+    return
+  fi
+  if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/${DEV_INIT_REL}/setup.sh" ]]; then
+    cd "${SLURM_SUBMIT_DIR}" && pwd
+    return
+  fi
+  local from_script
+  from_script="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  if [[ -f "${from_script}/${DEV_INIT_REL}/setup.sh" ]]; then
+    echo "${from_script}"
+    return
+  fi
+  return 1
+}
+
+if ! REPO_ROOT="$(_resolve_repo_root)"; then
+  echo "Could not find clarity-inference-pipeline repo root." >&2
+  echo "Submit from the clone:" >&2
+  echo "  cd ~/AIM-HI-Lab/code/\$USER/clarity-inference-pipeline && sbatch dev/260701_init/slurm_s3_worker.job" >&2
+  echo "Or: sbatch --export=ALL,CLARITY_REPO_ROOT=/path/to/clone dev/260701_init/slurm_s3_worker.job" >&2
+  exit 1
+fi
+cd "${REPO_ROOT}"
+
+DEV_INIT_DIR="${REPO_ROOT}/${DEV_INIT_REL}"
+
+# Lab modules on compute nodes (harmless if already loaded in non-interactive shell).
+if command -v module >/dev/null 2>&1; then
+  module purge 2>/dev/null || true
+  module load gcc slurm git oracle/12.2.0.1 python/3.12 2>/dev/null || true
+  module load cuda12.6/toolkit/12.6.2 singularity/4.2.2 2>/dev/null || true
+fi
+
+VENV_DIR="${CLARITY_VENV_DIR:-${CLARITY_VENV_DIR_DEFAULT}}"
+WORKER_BIN="${VENV_DIR}/bin/clarity-s3-worker"
+
+CPUS="${SLURM_CPUS_PER_TASK:-12}"
+export OMP_NUM_THREADS="${CPUS}"
+export MKL_NUM_THREADS="${CPUS}"
+export OPENBLAS_NUM_THREADS="${CPUS}"
+export NUMEXPR_NUM_THREADS="${CPUS}"
+
+if [[ -f "${DEV_INIT_DIR}/clarity_local_env.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "${DEV_INIT_DIR}/clarity_local_env.sh"
+fi
+if [[ -f "${DEV_INIT_DIR}/clarity_local_env_overrides.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "${DEV_INIT_DIR}/clarity_local_env_overrides.sh"
+fi
+
+CLARITY_S3_ENV_FILE="${CLARITY_S3_ENV_FILE:-${REPO_ROOT}/${CLARITY_S3_ENV_FILE_DEFAULT}}"
+if [[ -f "${CLARITY_S3_ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${CLARITY_S3_ENV_FILE}"
+  set +a
+  echo "Loaded config from ${CLARITY_S3_ENV_FILE}"
+fi
+
+export CLARITY_VENV_DIR="${VENV_DIR}"
+export PATH="${VENV_DIR}/bin:${PATH}"
+export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+export PYTHONUNBUFFERED=1
+
+BEEGFS_TEMP="${CLARITY_BEEGFS_TEMP:-${CLARITY_BEEGFS_TEMP_DEFAULT}}"
+mkdir -p "${BEEGFS_TEMP}"
+export TMPDIR="${TMPDIR:-${BEEGFS_TEMP}}"
+if [[ -n "${SLURM_TMPDIR:-}" ]]; then
+  export TMPDIR="${SLURM_TMPDIR}"
+fi
+
+if [[ -n "${CLARITY_NNUNET_V1_RAW:-}" ]]; then
+  export nnUNet_raw_data_base="${CLARITY_NNUNET_V1_RAW}"
+fi
+if [[ -n "${CLARITY_NNUNET_V1_PREPROCESSED:-}" ]]; then
+  export nnUNet_preprocessed="${CLARITY_NNUNET_V1_PREPROCESSED}"
+fi
+if [[ -n "${CLARITY_NNUNET_V1_RESULTS:-}" ]]; then
+  export RESULTS_FOLDER="${CLARITY_NNUNET_V1_RESULTS}"
+fi
+if [[ -n "${CLARITY_NNUNET_V2_RAW:-}" ]]; then
+  export nnUNet_raw="${CLARITY_NNUNET_V2_RAW}"
+fi
+if [[ -n "${CLARITY_NNUNET_V2_PREPROCESSED:-}" ]]; then
+  export nnUNet_preprocessed="${CLARITY_NNUNET_V2_PREPROCESSED}"
+fi
+if [[ -n "${CLARITY_NNUNET_V2_RESULTS:-}" ]]; then
+  export nnUNet_results="${CLARITY_NNUNET_V2_RESULTS}"
+fi
+
+if [[ ! -x "${WORKER_BIN}" ]]; then
+  echo "Cannot run worker at ${WORKER_BIN}" >&2
+  echo "Run once: ./dev/260701_init/setup.sh" >&2
+  exit 1
+fi
+
+export CLARITY_S3_BUCKET="${CLARITY_S3_BUCKET:-${CLARITY_S3_BUCKET_DEFAULT}}"
+export CLARITY_WEIGHTS_DIR="${CLARITY_WEIGHTS_DIR:-${CLARITY_WEIGHTS_DIR_DEFAULT}}"
+if [[ -z "${CLARITY_WEIGHTS_DIR}" ]]; then
+  export CLARITY_WEIGHTS_DIR="${REPO_ROOT}/pnvrn_folds"
+fi
+if [[ -z "${CLARITY_TCGA_PHASE_MODEL_DIR+x}" ]]; then
+  export CLARITY_TCGA_PHASE_MODEL_DIR="${CLARITY_TCGA_PHASE_MODEL_DIR_DEFAULT}"
+fi
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${AWS_DEFAULT_REGION_DEFAULT}}"
+AWS_PROFILE_VALUE="${AWS_PROFILE:-${AWS_PROFILE_DEFAULT}}"
+if [[ -n "${AWS_PROFILE_VALUE}" ]]; then
+  export AWS_PROFILE="${AWS_PROFILE_VALUE}"
+else
+  unset AWS_PROFILE || true
+fi
+export AWS_SHARED_CREDENTIALS_FILE="${AWS_SHARED_CREDENTIALS_FILE:-${AWS_SHARED_CREDENTIALS_FILE_DEFAULT}}"
+export AWS_CONFIG_FILE="${AWS_CONFIG_FILE:-${AWS_CONFIG_FILE_DEFAULT}}"
+export CLARITY_S3_PREFIX_ROOT="${CLARITY_S3_PREFIX_ROOT:-${CLARITY_S3_PREFIX_ROOT_DEFAULT}}"
+export CLARITY_WORK_ROOT="${CLARITY_WORK_ROOT:-${CLARITY_WORK_ROOT_DEFAULT}}"
+export CLARITY_DEVICE="${CLARITY_DEVICE:-${CLARITY_DEVICE_DEFAULT}}"
+export CLARITY_DICOM_BACKEND="${CLARITY_DICOM_BACKEND:-${CLARITY_DICOM_BACKEND_DEFAULT}}"
+export CLARITY_DCM2NIIX="${CLARITY_DCM2NIIX:-${CLARITY_DCM2NIIX_DEFAULT}}"
+export CLARITY_S3_POLL_SECONDS="${CLARITY_S3_POLL_SECONDS:-${CLARITY_S3_POLL_SECONDS_DEFAULT}}"
+export CLARITY_S3_MAX_CASES="${CLARITY_S3_MAX_CASES:-${CLARITY_S3_MAX_CASES_DEFAULT}}"
+export CLARITY_DELETE_INPUT_AFTER_FAILURE="${CLARITY_DELETE_INPUT_AFTER_FAILURE:-${CLARITY_DELETE_INPUT_AFTER_FAILURE_DEFAULT}}"
+export CLARITY_DELETE_INPUT_AFTER_SUCCESS="${CLARITY_DELETE_INPUT_AFTER_SUCCESS:-${CLARITY_DELETE_INPUT_AFTER_SUCCESS_DEFAULT}}"
+export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-${CLARITY_S3_ONCE_DEFAULT}}"
+export CLARITY_FAIL_ON_EMPTY_TUMOR="${CLARITY_FAIL_ON_EMPTY_TUMOR:-${CLARITY_FAIL_ON_EMPTY_TUMOR_DEFAULT}}"
+
+if [[ -z "${CLARITY_S3_BUCKET}" ]]; then
+  echo "CLARITY_S3_BUCKET is empty." >&2
+  exit 1
+fi
+if [[ ! -d "${CLARITY_WEIGHTS_DIR}" ]]; then
+  echo "CLARITY_WEIGHTS_DIR does not exist: ${CLARITY_WEIGHTS_DIR}" >&2
+  exit 1
+fi
+if [[ -n "${CLARITY_TCGA_PHASE_MODEL_DIR:-}" && ! -d "${CLARITY_TCGA_PHASE_MODEL_DIR}" ]]; then
+  echo "CLARITY_TCGA_PHASE_MODEL_DIR is set but not a directory: ${CLARITY_TCGA_PHASE_MODEL_DIR}" >&2
+  exit 1
+fi
+if [[ -z "${nnUNet_results:-}" || -z "${nnUNet_preprocessed:-}" || -z "${nnUNet_raw:-}" ]]; then
+  echo "nnU-Net v2 env vars missing. Run ./dev/260701_init/setup.sh and configure overrides." >&2
+  exit 1
+fi
+
+mkdir -p "${CLARITY_WORK_ROOT}"
+
+if [[ "${CLARITY_DEVICE}" == "cuda" && "${CLARITY_DEBUG_CUDA:-1}" != "0" ]]; then
+  bash "${DEV_INIT_DIR}/check_gpu_env.sh" || true
+fi
+
+echo "Worker config:"
+echo "  repo=${REPO_ROOT}"
+echo "  venv=${CLARITY_VENV_DIR}"
+echo "  beegfs_temp=${BEEGFS_TEMP}"
+echo "  bucket=${CLARITY_S3_BUCKET}"
+echo "  region=${AWS_DEFAULT_REGION}"
+echo "  prefix=${CLARITY_S3_PREFIX_ROOT}"
+echo "  work_root=${CLARITY_WORK_ROOT}"
+echo "  weights_dir=${CLARITY_WEIGHTS_DIR}"
+if [[ -n "${CLARITY_TCGA_PHASE_MODEL_DIR:-}" ]]; then
+  echo "  tcga_phase_model_dir=${CLARITY_TCGA_PHASE_MODEL_DIR}"
+fi
+echo "  device=${CLARITY_DEVICE}"
+echo "  poll_seconds=${CLARITY_S3_POLL_SECONDS}"
+echo "  once=${CLARITY_S3_ONCE}"
+echo "  nnunet_results=${nnUNet_results}"
+
+CMD=(
+  "${WORKER_BIN}"
+  --bucket "${CLARITY_S3_BUCKET}"
+  --region "${AWS_DEFAULT_REGION}"
+  --prefix-root "${CLARITY_S3_PREFIX_ROOT}"
+  --work-root "${CLARITY_WORK_ROOT}"
+  --weights-dir "${CLARITY_WEIGHTS_DIR}"
+  --device "${CLARITY_DEVICE}"
+  --dicom-backend "${CLARITY_DICOM_BACKEND}"
+  --dcm2niix "${CLARITY_DCM2NIIX}"
+  --poll-seconds "${CLARITY_S3_POLL_SECONDS}"
+)
+
+if [[ -n "${CLARITY_S3_MAX_CASES:-}" ]]; then
+  CMD+=(--max-cases "${CLARITY_S3_MAX_CASES}")
+fi
+if [[ "${CLARITY_DELETE_INPUT_AFTER_SUCCESS}" == "1" ]]; then
+  CMD+=(--delete-input-after-success)
+fi
+if [[ "${CLARITY_DELETE_INPUT_AFTER_FAILURE}" == "1" ]]; then
+  CMD+=(--delete-input-after-failure)
+fi
+if [[ "${CLARITY_S3_ONCE}" == "1" ]]; then
+  CMD+=(--once)
+fi
+if [[ "${CLARITY_FAIL_ON_EMPTY_TUMOR}" == "1" ]]; then
+  CMD+=(--fail-on-empty-tumor)
+fi
+if [[ -n "${CLARITY_TCGA_PHASE_MODEL_DIR:-}" ]]; then
+  CMD+=(--tcga-phase-model-dir "${CLARITY_TCGA_PHASE_MODEL_DIR}")
+fi
+if [[ -n "${CLARITY_TCGA_PHASE_CACHE_ROOT:-}" ]]; then
+  CMD+=(--tcga-phase-cache-root "${CLARITY_TCGA_PHASE_CACHE_ROOT}")
+fi
+
+WORKER_COUNT="${CLARITY_S3_WORKER_COUNT:-2}"
+if [[ ! "${WORKER_COUNT}" =~ ^[0-9]+$ || "${WORKER_COUNT}" -lt 1 ]]; then
+  WORKER_COUNT="1"
+fi
+echo "  worker_count=${WORKER_COUNT}"
+
+if [[ "${WORKER_COUNT}" -le 1 ]]; then
+  echo "Running: ${CMD[*]}"
+  exec "${CMD[@]}"
+fi
+
+echo "Launching ${WORKER_COUNT} sharded workers"
+pids=()
+for ((idx=0; idx<WORKER_COUNT; idx++)); do
+  worker_cmd=("${CMD[@]}" --worker-index "${idx}" --worker-count "${WORKER_COUNT}")
+  if [[ "${CLARITY_DEVICE}" == "cuda" ]]; then
+    echo "  worker[${idx}] CUDA_VISIBLE_DEVICES=${idx}: ${worker_cmd[*]}"
+    CUDA_VISIBLE_DEVICES="${idx}" "${worker_cmd[@]}" &
+  else
+    echo "  worker[${idx}] ${worker_cmd[*]}"
+    "${worker_cmd[@]}" &
+  fi
+  pids+=("$!")
+done
+
+exit_code=0
+for pid in "${pids[@]}"; do
+  if ! wait "${pid}"; then
+    exit_code=1
+  fi
+done
+exit "${exit_code}"

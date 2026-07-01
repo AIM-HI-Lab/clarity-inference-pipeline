@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Site-specific overrides — copy from clarity_local_env_overrides.sh.example:
+#   cp dev/260701_init/clarity_local_env_overrides.sh.example dev/260701_init/clarity_local_env_overrides.sh
+#
+# Sourced AFTER clarity_local_env.sh in setup.sh and the Slurm worker job.
+
+export CLARITY_NNUNET_V2_RESULTS="${HOME}/AIM-HI-Lab/models/radiomics_pipeline_models/nnUNet_v2/nnUNet_results_v2"
+export CLARITY_NNUNET_V2_RAW="${HOME}/AIM-HI-Lab/models/radiomics_pipeline_models/nnUNet_v2/nnUNet_raw_data_v2"
+export CLARITY_NNUNET_V2_PREPROCESSED="${HOME}/AIM-HI-Lab/models/radiomics_pipeline_models/nnUNet_v2/nnUNet_preprocessed_v2"
