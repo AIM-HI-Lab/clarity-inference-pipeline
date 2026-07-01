@@ -43,6 +43,8 @@ class TumorSegmentationConfig:
     configuration: str = "3d_fullres"
     folds: Sequence[str] = ("all",)
     extra_args: Sequence[str] = ()
+    device: str | None = None
+    """If set, passed to nnU-Net v2 as ``-device`` (``cpu`` / ``cuda`` / ``mps``)."""
     env: Mapping[str, str] = field(default_factory=dict)
 
 

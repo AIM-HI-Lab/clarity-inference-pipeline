@@ -282,6 +282,7 @@ def predict(
         dataset_id=tumor_dataset_id,
         configuration=tumor_configuration,
         extra_args=tumor_extra_args,
+        device=device,
     )
     mask_cfg = MaskAdaptationConfig(reference_image=mask_reference)
     inference_cfg = InferenceConfig(

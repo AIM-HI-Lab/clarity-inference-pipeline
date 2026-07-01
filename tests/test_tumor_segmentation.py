@@ -38,7 +38,7 @@ class TumorSegmentationTests(unittest.TestCase):
                 run_tumor_segmentation(
                     image,
                     output,
-                    TumorSegmentationConfig(mode="nnunetv2"),
+                    TumorSegmentationConfig(mode="nnunetv2", device="cpu"),
                 )
 
             self.assertTrue(output.exists())
@@ -46,6 +46,8 @@ class TumorSegmentationTests(unittest.TestCase):
             self.assertIn("nnUNetv2_predict", cmd)
             self.assertIn("Dataset123_Kits23", cmd)
             self.assertIn("3d_fullres", cmd)
+            self.assertIn("-device", cmd)
+            self.assertIn("cpu", cmd)
 
 
 if __name__ == "__main__":

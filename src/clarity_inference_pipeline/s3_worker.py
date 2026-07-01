@@ -692,7 +692,7 @@ def _process_submission(
         base_cfg_kwargs = dict(
             dicom_input=input_root,
             totalsegmentator=TotalSegmentatorConfig(device=device),
-            tumor=TumorSegmentationConfig(),
+            tumor=TumorSegmentationConfig(device=device),
             phase_gating=PhaseGatingConfig(),
             tcga_phase_prediction=tcga_phase_cfg,
             mask_adaptation=MaskAdaptationConfig(),

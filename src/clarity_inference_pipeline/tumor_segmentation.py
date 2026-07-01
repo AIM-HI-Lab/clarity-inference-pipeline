@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Sequence
 
 from .config import TumorSegmentationConfig
 from .subprocess_util import run_subprocess_logged
@@ -25,6 +26,29 @@ def _executable_for_mode(config: TumorSegmentationConfig) -> str:
     if config.mode == "nnunetv2" and b == "clarity-nnunet-predict":
         return "nnUNetv2_predict"
     return b
+
+
+def _nnunetv2_device_flag(device: str | None) -> str | None:
+    if not device:
+        return None
+    normalized = device.strip().lower()
+    if normalized == "cuda":
+        return "cuda"
+    if normalized == "cpu":
+        return "cpu"
+    if normalized == "mps":
+        return "mps"
+    return normalized
+
+
+def _extra_args_include_device(extra_args: Sequence[str]) -> bool:
+    return any(arg in ("-device", "--device") for arg in extra_args)
+
+
+def _apply_nnunet_device_env(env: dict[str, str], device_flag: str | None) -> None:
+    if device_flag == "cpu":
+        # nnU-Net may still probe CUDA for pin_memory unless hidden from the child process.
+        env["CUDA_VISIBLE_DEVICES"] = ""
 
 
 def run_tumor_segmentation(
@@ -71,6 +95,10 @@ def run_tumor_segmentation(
             ]
             for fold in config.folds:
                 cmd.extend(["-f", str(fold)])
+            device_flag = _nnunetv2_device_flag(config.device)
+            _apply_nnunet_device_env(env, device_flag)
+            if device_flag and not _extra_args_include_device(config.extra_args):
+                cmd.extend(["-device", device_flag])
             cmd.extend(list(config.extra_args))
             proc = run_subprocess_logged(cmd, env=env, label="nnUNetv2_predict")
             produced = tmp_output_path / f"{case_id}.nii.gz"
