@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=clarity-s3-cpu
+#SBATCH -p defq
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=48
+#SBATCH --mem=180000
+#SBATCH --output=slurm-%x-%j.out
+#
+# CPU S3 worker on defq (48 cores / ~180 GB RAM per node).
+# Does not request GPUs, nodes (-N), or wall time.
+#
+# Submit from the repo clone:
+#   cd ~/AIM-HI-Lab/code/$USER/clarity-inference-pipeline
+#   sbatch dev/260701_init/slurm_s3_worker_cpu_defq.job
+#
+# Process one pending submission and exit (default):
+#   sbatch dev/260701_init/slurm_s3_worker_cpu_defq.job
+#
+# Override via --export=ALL,KEY=value or dev/260701_init/slurm_s3_worker.env
+#
+set -euo pipefail
+
+export CLARITY_DEVICE="${CLARITY_DEVICE:-cpu}"
+export CLARITY_S3_WORKER_COUNT="${CLARITY_S3_WORKER_COUNT:-1}"
+export CLARITY_DEBUG_CUDA=0
+export CLARITY_S3_ONCE="${CLARITY_S3_ONCE:-1}"
+
+# Speed defaults for CPU (override or unset via --export if you want full quality).
+export CLARITY_TUMOR_EXTRA="${CLARITY_TUMOR_EXTRA:---disable_tta}"
+export CLARITY_TOTALSEG_EXTRA="${CLARITY_TOTALSEG_EXTRA:---fast}"
+export SWP_DATA_NUM_WORKERS="${SWP_DATA_NUM_WORKERS:-8}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec bash "${SCRIPT_DIR}/slurm_s3_worker.job"
