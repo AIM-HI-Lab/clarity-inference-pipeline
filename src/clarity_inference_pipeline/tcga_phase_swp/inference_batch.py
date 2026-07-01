@@ -13,9 +13,10 @@ from .v3_preprocess import cache_case_v1, hash_str, load_view, no_augment_fn
 def _resolve_torch_device(device: str | torch.device | None) -> torch.device:
     if device is None:
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if isinstance(device, torch.device):
-        return device
-    return torch.device(device)
+    resolved = device if isinstance(device, torch.device) else torch.device(device)
+    if resolved.type == "cuda" and not torch.cuda.is_available():
+        return torch.device("cpu")
+    return resolved
 
 BATCH_SIZE = 16
 RSMP_PIXEL_SIZE = 1
@@ -61,7 +62,11 @@ def load_models(
             continue
         model = resnet50()
         model.fc = torch.nn.Linear(2048, n_classes)
-        model.load_state_dict(torch.load(model_pth, map_location=device))
+        try:
+            state = torch.load(model_pth, map_location="cpu", weights_only=False)
+        except TypeError:
+            state = torch.load(model_pth, map_location="cpu")
+        model.load_state_dict(state)
         model.to(device)
         model.eval()
         models.append(model)
