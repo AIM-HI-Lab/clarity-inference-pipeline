@@ -4,7 +4,6 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=180000
-#SBATCH --output=slurm-%x-%j.out
 #
 # CPU S3 worker on defq (48 cores / ~180 GB RAM per node).
 # Does not request GPUs, nodes (-N), or wall time.
@@ -30,5 +29,38 @@ export CLARITY_TUMOR_EXTRA="${CLARITY_TUMOR_EXTRA:---disable_tta}"
 export CLARITY_TOTALSEG_EXTRA="${CLARITY_TOTALSEG_EXTRA:---fast}"
 export SWP_DATA_NUM_WORKERS="${SWP_DATA_NUM_WORKERS:-8}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec bash "${SCRIPT_DIR}/slurm_s3_worker.job"
+DEV_INIT_REL="dev/260701_init"
+
+_resolve_repo_root() {
+  if [[ -n "${CLARITY_REPO_ROOT:-}" ]]; then
+    cd "${CLARITY_REPO_ROOT}" && pwd
+    return
+  fi
+  if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/${DEV_INIT_REL}/setup.sh" ]]; then
+    cd "${SLURM_SUBMIT_DIR}" && pwd
+    return
+  fi
+  local from_script
+  from_script="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  if [[ -f "${from_script}/${DEV_INIT_REL}/setup.sh" ]]; then
+    echo "${from_script}"
+    return
+  fi
+  return 1
+}
+
+if ! REPO_ROOT="$(_resolve_repo_root)"; then
+  echo "Could not find clarity-inference-pipeline repo root." >&2
+  echo "Submit from the clone:" >&2
+  echo "  cd ~/AIM-HI-Lab/code/\$USER/clarity-inference-pipeline && sbatch dev/260701_init/slurm_s3_worker_cpu_defq.job" >&2
+  echo "Or: sbatch --export=ALL,CLARITY_REPO_ROOT=/path/to/clone dev/260701_init/slurm_s3_worker_cpu_defq.job" >&2
+  exit 1
+fi
+
+WORKER_JOB="${REPO_ROOT}/${DEV_INIT_REL}/slurm_s3_worker.job"
+if [[ ! -f "${WORKER_JOB}" ]]; then
+  echo "Missing worker script: ${WORKER_JOB}" >&2
+  exit 1
+fi
+
+exec bash "${WORKER_JOB}"
